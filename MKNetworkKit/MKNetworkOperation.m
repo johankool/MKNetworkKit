@@ -261,7 +261,7 @@
   if(![self isCacheable]) return;
   if(!([self.response statusCode] >= 200 && [self.response statusCode] < 300)) return;
 
-  if(![self isCancelled])   
+  if(![self isCancelled] && self.cacheHandlingBlock)   
     self.cacheHandlingBlock(self);
 }
 
