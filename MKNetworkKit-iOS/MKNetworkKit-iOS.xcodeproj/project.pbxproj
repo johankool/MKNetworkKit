@@ -28,6 +28,8 @@
 		ABB5C2CE148B40910056D3E9 /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ABB5C2CC148B40910056D3E9 /* CFNetwork.framework */; };
 		ABDC97461498A6DE0034CEBE /* NSData+Base64.h in Headers */ = {isa = PBXBuildFile; fileRef = ABDC97441498A6DE0034CEBE /* NSData+Base64.h */; };
 		ABDC97471498A6DE0034CEBE /* NSData+Base64.m in Sources */ = {isa = PBXBuildFile; fileRef = ABDC97451498A6DE0034CEBE /* NSData+Base64.m */; };
+		C7AD4256152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h in Headers */ = {isa = PBXBuildFile; fileRef = C7AD4254152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h */; };
+		C7AD4257152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = C7AD4255152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +56,8 @@
 		ABB5C2CC148B40910056D3E9 /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		ABDC97441498A6DE0034CEBE /* NSData+Base64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSData+Base64.h"; sourceTree = "<group>"; };
 		ABDC97451498A6DE0034CEBE /* NSData+Base64.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSData+Base64.m"; sourceTree = "<group>"; };
+		C7AD4254152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "UIImageView+MKNetworkKitAdditions.h"; path = "../../../../Mobzili/Hanzesteden/Hanzesteden/External/MugunthKumar-MKNetworkKit-ff82f3b/MKNetworkKit/Categories/UIImageView+MKNetworkKitAdditions.h"; sourceTree = "<group>"; };
+		C7AD4255152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIImageView+MKNetworkKitAdditions.m"; path = "../../../../Mobzili/Hanzesteden/Hanzesteden/External/MugunthKumar-MKNetworkKit-ff82f3b/MKNetworkKit/Categories/UIImageView+MKNetworkKitAdditions.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +139,8 @@
 				ABB5C2AD148B3B360056D3E9 /* NSString+MKNetworkKitAdditions.m */,
 				ABB5C2AE148B3B360056D3E9 /* UIAlertView+MKNetworkKitAdditions.h */,
 				ABB5C2AF148B3B360056D3E9 /* UIAlertView+MKNetworkKitAdditions.m */,
+				C7AD4254152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h */,
+				C7AD4255152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m */,
 			);
 			name = Categories;
 			path = ../../MKNetworkKit/Categories;
@@ -174,6 +180,7 @@
 				ABB5C2C4148B3B360056D3E9 /* Reachability.h in Headers */,
 				AB3A3098148F0A3B00D06246 /* NSDate+RFC1123.h in Headers */,
 				ABDC97461498A6DE0034CEBE /* NSData+Base64.h in Headers */,
+				C7AD4256152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +243,7 @@
 				ABB5C2C5148B3B360056D3E9 /* Reachability.m in Sources */,
 				AB3A3099148F0A3B00D06246 /* NSDate+RFC1123.m in Sources */,
 				ABDC97471498A6DE0034CEBE /* NSData+Base64.m in Sources */,
+				C7AD4257152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
