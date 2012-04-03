@@ -26,16 +26,22 @@
 
 
 #if TARGET_OS_IPHONE
-#import "UIImageView+MKNetworkKitAdditions.h"
 
 #define kActivityIndicatorTag 18942347
+#define kMaskingViewTag 18942348
+#define kTemporaryViewTag 18942349
 
 @implementation UIImageView (MKNetworkKitAdditions)
 
 - (void)showActivityIndicatorWithStyle:(UIActivityIndicatorViewStyle)indicatorStyle {
     UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:indicatorStyle];
     activityIndicator.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
-    activityIndicator.center = self.center;
+    CGRect currentFrame = activityIndicator.frame;
+    CGRect newFrame = CGRectMake(CGRectGetMidX(self.bounds) - 0.5f * currentFrame.size.width,
+                                 CGRectGetMidY(self.bounds) - 0.5f * currentFrame.size.height,
+                                 currentFrame.size.width,
+                                 currentFrame.size.height);
+    activityIndicator.frame = newFrame;
     activityIndicator.tag = kActivityIndicatorTag;
     [activityIndicator startAnimating];
     [self addSubview:activityIndicator];
@@ -44,14 +50,17 @@
 - (void)hideActivityIndicator {
     UIView *activityIndicator = [self viewWithTag:kActivityIndicatorTag];
     [activityIndicator removeFromSuperview];
+    UIView *maskingImageView = [self viewWithTag:kMaskingViewTag];
+    [maskingImageView removeFromSuperview];
+    UIView *temporaryImageView = [self viewWithTag:kTemporaryViewTag];
+    [temporaryImageView removeFromSuperview];
 }
 
 - (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine {
-    return [self setImageAtURL:imageURL usingEngine:networkEngine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil notAvailableImage:nil];
+    return [self setImageAtURL:imageURL usingEngine:networkEngine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
 }
 
-- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage notAvailableImage:(UIImage *)notAvailableImage; {
-    
+- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage; {
     self.image = loadingImage;
     
     if (!imageURL) {
@@ -59,24 +68,73 @@
         return nil;
     }
     
+    // Setup views needed for fade
+    UIImageView *temporaryImageView = nil;
+    UIImageView *maskingImageView = nil;
+    if (fadeIn) {
+        temporaryImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
+        temporaryImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        temporaryImageView.image = self.image;
+        temporaryImageView.tag = kTemporaryViewTag;
+        [self addSubview:temporaryImageView];
+        
+        maskingImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
+        maskingImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        maskingImageView.image = self.image;
+        maskingImageView.tag = kMaskingViewTag;
+        
+        if (self.backgroundColor) {
+            maskingImageView.backgroundColor = [self.backgroundColor colorWithAlphaComponent:1.0];
+        } else {
+            maskingImageView.backgroundColor = [UIColor whiteColor];
+        }
+        [self addSubview:maskingImageView];
+    }
+    
     if (showActivityIndicator) {
-        [self showActivityIndicatorWithStyle:indicatorStyle];
+        if (maskingImageView) {
+            [maskingImageView showActivityIndicatorWithStyle:indicatorStyle];
+        } else {
+            [self showActivityIndicatorWithStyle:indicatorStyle];
+        }
     }
     
     MKNetworkOperation *imageOperation = [networkEngine imageAtURL:imageURL onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
         if (!fetchedImage) {
-            self.image = notAvailableImage;
-        } else {
-            self.image = fetchedImage;
+           fetchedImage = notAvailableImage;
         }
-        if (showActivityIndicator) {
-            [self performSelectorOnMainThread:@selector(hideActivityIndicator) withObject:nil waitUntilDone:NO];
+        
+        if (!isInCache && fadeIn) {
+            // Perform fade
+            temporaryImageView.image = fetchedImage;
+            temporaryImageView.alpha = 0;
+            maskingImageView.alpha = 1;
+            [UIView animateWithDuration:0.4 
+                             animations:^{ 
+                                 temporaryImageView.alpha = 1;
+                                 maskingImageView.alpha = 0;
+                             } 
+                             completion:^(BOOL finished) {
+                                 if (finished) {
+                                     // Set image and cleanup
+                                     self.image = fetchedImage;
+                                     [temporaryImageView removeFromSuperview];
+                                     [maskingImageView removeFromSuperview];
+                                 }
+                             }];
+        } else {
+            // Set image and cleanup
+            self.image = fetchedImage;
+            [self hideActivityIndicator];
+            [temporaryImageView removeFromSuperview];
+            [maskingImageView removeFromSuperview];
         }
     }];
     [networkEngine enqueueOperation:imageOperation forceReload:forceReload];
     
     return imageOperation;
 }
+
 
 @end
 #endif
