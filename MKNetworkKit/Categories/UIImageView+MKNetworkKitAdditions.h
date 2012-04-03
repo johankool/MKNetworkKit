@@ -26,12 +26,11 @@
 
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>
-#import "MKNetworkKit.h"
 
 @interface UIImageView (MKNetworkKitAdditions)
 
 - (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine;
-- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage notAvailableImage:(UIImage *)notAvailableImage;
+- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage;
 
 - (void)showActivityIndicatorWithStyle:(UIActivityIndicatorViewStyle)indicatorStyle;
 - (void)hideActivityIndicator;

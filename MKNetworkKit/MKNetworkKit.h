@@ -79,4 +79,6 @@
 #define kMKNetworkKitRequestTimeOutInSeconds 30
 #endif
 
-
+#if TARGET_OS_IPHONE
+#import "Categories/UIImageView+MKNetworkKitAdditions.h"
+#endif

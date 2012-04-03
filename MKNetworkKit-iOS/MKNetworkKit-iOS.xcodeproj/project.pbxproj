@@ -28,7 +28,7 @@
 		ABB5C2CE148B40910056D3E9 /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ABB5C2CC148B40910056D3E9 /* CFNetwork.framework */; };
 		ABDC97461498A6DE0034CEBE /* NSData+Base64.h in Headers */ = {isa = PBXBuildFile; fileRef = ABDC97441498A6DE0034CEBE /* NSData+Base64.h */; };
 		ABDC97471498A6DE0034CEBE /* NSData+Base64.m in Sources */ = {isa = PBXBuildFile; fileRef = ABDC97451498A6DE0034CEBE /* NSData+Base64.m */; };
-		C7AD4256152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h in Headers */ = {isa = PBXBuildFile; fileRef = C7AD4254152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h */; };
+		C7AD4256152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h in Headers */ = {isa = PBXBuildFile; fileRef = C7AD4254152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C7AD4257152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = C7AD4255152A006F00FE47A3 /* UIImageView+MKNetworkKitAdditions.m */; };
 /* End PBXBuildFile section */
 
