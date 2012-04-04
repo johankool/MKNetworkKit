@@ -26,6 +26,7 @@
 
 
 #if TARGET_OS_IPHONE
+#import "MKNetworkKit.h"
 
 #define kActivityIndicatorTag 18942347
 #define kMaskingViewTag 18942348
@@ -57,10 +58,10 @@
 }
 
 - (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine {
-    return [self setImageAtURL:imageURL usingEngine:networkEngine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
+    return [self setImageAtURL:imageURL usingEngine:networkEngine showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
 }
 
-- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage; {
+- (MKNetworkOperation *)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)networkEngine showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage; {
     self.image = loadingImage;
     
     if (!imageURL) {
@@ -130,7 +131,6 @@
             [maskingImageView removeFromSuperview];
         }
     }];
-    [networkEngine enqueueOperation:imageOperation forceReload:forceReload];
     
     return imageOperation;
 }
