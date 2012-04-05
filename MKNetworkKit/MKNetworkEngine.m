@@ -430,7 +430,9 @@ static NSOperationQueue *_sharedNetworkQueue;
      
    }
    onError:^(NSError* error) {
-     
+       imageFetchedBlock(nil, 
+                         url,
+                         NO);
      DLog(@"%@", error);
    }];    
   
