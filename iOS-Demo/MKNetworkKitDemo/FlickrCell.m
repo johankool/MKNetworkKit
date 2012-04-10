@@ -35,7 +35,7 @@
 -(void) prepareForReuse {
     
     self.thumbnailImage.image = nil;
-    [self.thumbnailImage hideActivityIndicator];
+    [self.thumbnailImage cancelImageDownload];
     [self.imageLoadingOperation cancel];
 }
 
@@ -64,7 +64,7 @@
      [thisFlickrImage objectForKey:@"farm"], [thisFlickrImage objectForKey:@"server"], 
      [thisFlickrImage objectForKey:@"id"], [thisFlickrImage objectForKey:@"secret"]];
     
-    self.imageLoadingOperation = [self.thumbnailImage setImageAtURL:[NSURL URLWithString:self.loadingImageURLString] usingEngine:ApplicationDelegate.flickrEngine];
+    [self.thumbnailImage setImageAtURL:[NSURL URLWithString:self.loadingImageURLString]];
 
 //    self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString] 
 //                                    onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
