@@ -75,12 +75,14 @@
     if (fadeIn) {
         temporaryImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
         temporaryImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        temporaryImageView.contentMode = self.contentMode;
         temporaryImageView.image = self.image;
         temporaryImageView.tag = kTemporaryViewTag;
         [self addSubview:temporaryImageView];
         
         maskingImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
         maskingImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        maskingImageView.contentMode = self.contentMode;
         maskingImageView.image = self.image;
         maskingImageView.tag = kMaskingViewTag;
         
