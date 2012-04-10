@@ -92,10 +92,20 @@ static char kMKNetworkOperationObjectKey;
 }
 
 - (void)setImageAtURL:(NSURL *)imageURL {
-    return [self setImageAtURL:imageURL forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
+    [self setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine]];
+}
+
+- (void)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine {
+    [self setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
 }
 
 - (void)setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
+    [self setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage];
+}
+
+- (void)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
+    NSParameterAssert(engine);
+    
     // In case we are called multiple times, cleanup old stuff first
     [self cancelImageDownload];
     
@@ -171,14 +181,14 @@ static char kMKNetworkOperationObjectKey;
         }
     };
     
-    MKNetworkOperation *imageOperation = [[UIImageView mk_sharedImageEngine] operationWithURLString:[imageURL absoluteString]];
+    MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
     [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
         completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
     } onError:^(NSError *error) {
         completionBlock(nil, imageURL, NO);
     }];
     self.mk_imageOperation = imageOperation;
-    [[UIImageView mk_sharedImageEngine] enqueueOperation:imageOperation forceReload:forceReload];
+    [engine enqueueOperation:imageOperation forceReload:forceReload];
 }
 
 - (void)cancelImageDownload {
