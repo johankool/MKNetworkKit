@@ -26,6 +26,7 @@
 
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>
+#import "MKNetworkKit.h"
 
 @interface UIImageView (MKNetworkKitAdditions)
 
