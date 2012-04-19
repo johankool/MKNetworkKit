@@ -45,7 +45,6 @@
 @property (nonatomic, strong) NSMutableArray *memoryCacheKeys;
 @property (nonatomic, strong) NSMutableDictionary *cacheInvalidationParams;
 
-
 -(void) saveCache;
 -(void) saveCacheData:(NSData*) data forKey:(NSString*) cacheDataKey;
 
@@ -58,16 +57,18 @@
 static NSOperationQueue *_sharedNetworkQueue;
 
 @implementation MKNetworkEngine
-@synthesize hostName = hostName_;
-@synthesize reachability = reachability_;
-@synthesize customHeaders = customHeaders_;
-@synthesize customOperationSubclass = customOperationSubclass_;
+@synthesize hostName = _hostName;
+@synthesize reachability = _reachability;
+@synthesize customHeaders = _customHeaders;
+@synthesize customOperationSubclass = _customOperationSubclass;
 
-@synthesize memoryCache = memoryCache_;
-@synthesize memoryCacheKeys = memoryCacheKeys_;
-@synthesize cacheInvalidationParams = cacheInvalidationParams_;
+@synthesize memoryCache = _memoryCache;
+@synthesize memoryCacheKeys = _memoryCacheKeys;
+@synthesize cacheInvalidationParams = _cacheInvalidationParams;
 
-@synthesize reachabilityChangedHandler = reachabilityChangedHandler_;
+@synthesize reachabilityChangedHandler = _reachabilityChangedHandler;
+@synthesize portNumber = _portNumber;
+@synthesize apiPath = _apiPath;
 
 // Network Queue is a shared singleton object.
 // no matter how many instances of MKNetworkEngine is created, there is one and only one network queue
@@ -89,21 +90,28 @@ static NSOperationQueue *_sharedNetworkQueue;
   }            
 }
 
+
 - (id) init {
-    return [self initWithHostName:nil customHeaderFields:nil];
+    return [self initWithHostName:nil apiPath:nil customHeaderFields:nil];
 }
 
-- (id) initWithHostName:(NSString*) hostName customHeaderFields:(NSDictionary*) headers {
+- (id) initWithHostName:(NSString*) hostName {
+    return [self initWithHostName:hostName apiPath:nil customHeaderFields:nil];
+}
+
+- (id) initWithHostName:(NSString*) hostName apiPath:(NSString*) apiPath customHeaderFields:(NSDictionary*) headers {
   
   if((self = [super init])) {        
     
+    self.apiPath = apiPath;
+
     if(hostName) {
       [[NSNotificationCenter defaultCenter] addObserver:self 
                                                selector:@selector(reachabilityChanged:) 
                                                    name:kReachabilityChangedNotification 
                                                  object:nil];
       
-      self.hostName = hostName;            
+      self.hostName = hostName;  
       self.reachability = [Reachability reachabilityWithHostname:self.hostName];
       [self.reachability startNotifier];            
     }
@@ -123,7 +131,12 @@ static NSOperationQueue *_sharedNetworkQueue;
     self.customOperationSubclass = [MKNetworkOperation class];
   }
   
-  return self;
+  return self;  
+}
+
+- (id) initWithHostName:(NSString*) hostName customHeaderFields:(NSDictionary*) headers {
+  
+  return [self initWithHostName:hostName apiPath:nil customHeaderFields:headers];
 }
 
 #pragma mark -
@@ -244,7 +257,7 @@ static NSOperationQueue *_sharedNetworkQueue;
 
 -(NSString*) readonlyHostName {
   
-  return [hostName_ copy];
+  return [_hostName copy];
 }
 
 -(BOOL) isReachable {
@@ -285,7 +298,21 @@ static NSOperationQueue *_sharedNetworkQueue;
                               httpMethod:(NSString*)method 
                                      ssl:(BOOL) useSSL {
   
-  NSString *urlString = [NSString stringWithFormat:@"%@://%@/%@", useSSL ? @"https" : @"http", self.hostName, path];
+  if(self.hostName == nil) {
+   
+    DLog(@"Hostname is nil, use operationWithURLString: method to create absolute URL operations");
+    return nil;
+  }
+  
+  NSMutableString *urlString = [NSMutableString stringWithFormat:@"%@://%@", useSSL ? @"https" : @"http", self.hostName];
+
+  if(self.portNumber != 0)
+    [urlString appendFormat:@":%d", self.portNumber];
+  
+  if(self.apiPath) 
+    [urlString appendFormat:@"/%@", self.apiPath];
+  
+  [urlString appendFormat:@"/%@", path];
   
   return [self operationWithURLString:urlString params:body httpMethod:method];
 }
@@ -358,7 +385,9 @@ static NSOperationQueue *_sharedNetworkQueue;
     }];
     
     __block double expiryTimeInSeconds = 0.0f;    
-    
+
+    if([operation isCacheable]) {
+
     if(!forceReload) {
       NSData *cachedData = [self cachedDataForOperation:operation];
       if(cachedData) {
@@ -386,6 +415,7 @@ static NSOperationQueue *_sharedNetworkQueue;
     }
     
     dispatch_async(originalQueue, ^{
+      
       NSUInteger index = [_sharedNetworkQueue.operations indexOfObject:operation];
       if(index == NSNotFound) {
         
@@ -401,10 +431,18 @@ static NSOperationQueue *_sharedNetworkQueue;
         [queuedOperation updateHandlersFromOperation:operation];
       }
       
-      if([self.reachability currentReachabilityStatus] == NotReachable)
-        [self freezeOperations];
+      
     });
+    } else {
+      
+      [_sharedNetworkQueue addOperation:operation];
+    }
+
+    if([self.reachability currentReachabilityStatus] == NotReachable)
+      [self freezeOperations];
   });
+  
+  
 }
 
 - (MKNetworkOperation*)imageAtURL:(NSURL *)url onCompletion:(MKNKImageBlock) imageFetchedBlock
@@ -468,7 +506,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       [[NSFileManager defaultManager] removeItemAtPath:filePath error:&error]; 
       ELog(error);
     }
-
+    
     [[self.memoryCache objectForKey:cacheKey] writeToFile:filePath atomically:YES];        
   }
   

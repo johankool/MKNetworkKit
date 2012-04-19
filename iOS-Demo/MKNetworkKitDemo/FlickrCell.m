@@ -13,7 +13,6 @@
 @synthesize authorNameLabel = authorNameLabel_;
 @synthesize thumbnailImage = thumbnailImage_;
 @synthesize loadingImageURLString = loadingImageURLString_;
-@synthesize imageLoadingOperation = imageLoadingOperation_;
 
 //=========================================================== 
 // + (BOOL)automaticallyNotifiesObserversForKey:
@@ -36,7 +35,6 @@
     
     self.thumbnailImage.image = nil;
     [self.thumbnailImage cancelImageDownload];
-    [self.imageLoadingOperation cancel];
 }
 
 - (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
@@ -65,35 +63,6 @@
      [thisFlickrImage objectForKey:@"id"], [thisFlickrImage objectForKey:@"secret"]];
     
     [self.thumbnailImage setImageAtURL:[NSURL URLWithString:self.loadingImageURLString]];
-
-//    self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString] 
-//                                    onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
-//                                        
-//                                        if([self.loadingImageURLString isEqualToString:[url absoluteString]]) {
-//                                            
-//                                            if (isInCache) {
-//                                                self.thumbnailImage.image = fetchedImage;
-//                                            } else {
-//                                                UIImageView *loadedImageView = [[UIImageView alloc] initWithImage:fetchedImage];
-//                                                loadedImageView.frame = self.thumbnailImage.frame;
-//                                                loadedImageView.alpha = 0;
-//                                                [self.contentView addSubview:loadedImageView];
-//                                                
-//                                                [UIView animateWithDuration:0.4
-//                                                                 animations:^
-//                                                 {
-//                                                     loadedImageView.alpha = 1;
-//                                                     self.thumbnailImage.alpha = 0;
-//                                                 }
-//                                                                 completion:^(BOOL finished)
-//                                                 {
-//                                                     self.thumbnailImage.image = fetchedImage;
-//                                                     self.thumbnailImage.alpha = 1;
-//                                                     [loadedImageView removeFromSuperview];
-//                                                 }];
-//                                            }
-//                                        }
-//                                    }];
 }
 
 @end

@@ -154,7 +154,7 @@ static char kMKNetworkOperationObjectKey;
             fetchedImage = notAvailableImage;
         }
         
-        if (fadeIn) {
+        if (fadeIn && !isInCache) {
             // Perform fade
             temporaryImageView.image = fetchedImage;
             temporaryImageView.alpha = 0;
