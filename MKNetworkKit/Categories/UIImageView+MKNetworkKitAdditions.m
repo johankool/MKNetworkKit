@@ -106,13 +106,26 @@ static char kMKNetworkOperationObjectKey;
 - (void)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
     NSParameterAssert(engine);
     
+    // Don't restart same URL
+    BOOL operationAlreadyActive = NO;
+    if ([self.mk_imageOperation.url isEqual:imageURL]) {
+        operationAlreadyActive = YES;
+    }
+    
     // In case we are called multiple times, cleanup old stuff first
-    [self cancelImageDownload];
+    if (operationAlreadyActive) {
+        [self mk_cleanup];
+    } else {
+        [self cancelImageDownload];
+    }
     
     self.image = loadingImage;
     
     if (!imageURL) {
         self.image = notAvailableImage;
+        if (operationAlreadyActive) {
+            [self cancelImageDownload];
+        }
         return;
     }
     
@@ -181,14 +194,22 @@ static char kMKNetworkOperationObjectKey;
         }
     };
     
-    MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
-    [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
-        completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
-    } onError:^(NSError *error) {
-        completionBlock(nil, imageURL, NO);
-    }];
-    self.mk_imageOperation = imageOperation;
-    [engine enqueueOperation:imageOperation forceReload:forceReload];
+    if (operationAlreadyActive) {
+        [self.mk_imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+            completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
+        } onError:^(NSError *error) {
+            completionBlock(nil, imageURL, NO);
+        }];
+    } else {
+        MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
+        [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+            completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
+        } onError:^(NSError *error) {
+            completionBlock(nil, imageURL, NO);
+        }];
+        self.mk_imageOperation = imageOperation;
+        [engine enqueueOperation:imageOperation forceReload:forceReload];
+    }
 }
 
 - (void)cancelImageDownload {
