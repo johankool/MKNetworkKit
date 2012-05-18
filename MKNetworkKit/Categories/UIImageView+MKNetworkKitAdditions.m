@@ -37,7 +37,7 @@ static char kMKNetworkOperationObjectKey;
 
 @interface UIImageView (MKNetworkKitAdditions_Private)
 
-@property (readwrite, nonatomic, retain, setter = mk_setImageOperation:) MKNetworkOperation *mk_imageOperation;
+@property (readwrite, nonatomic, retain, getter=mk_imageOperation, setter = mk_setImageOperation:) MKNetworkOperation *mk_imageOperation;
 
 @end
 
@@ -91,19 +91,19 @@ static char kMKNetworkOperationObjectKey;
     [temporaryImageView removeFromSuperview];
 }
 
-- (void)setImageAtURL:(NSURL *)imageURL {
-    [self setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine]];
+- (void)mk_setImageAtURL:(NSURL *)imageURL {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine]];
 }
 
-- (void)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine {
-    [self setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
+- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine {
+    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
 }
 
-- (void)setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
-    [self setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage];
+- (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage];
 }
 
-- (void)setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
+- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
     NSParameterAssert(engine);
     
     // Don't restart same URL
@@ -116,7 +116,7 @@ static char kMKNetworkOperationObjectKey;
     if (operationAlreadyActive) {
         [self mk_cleanup];
     } else {
-        [self cancelImageDownload];
+        [self mk_cancelImageDownload];
     }
     
     self.image = loadingImage;
@@ -124,7 +124,7 @@ static char kMKNetworkOperationObjectKey;
     if (!imageURL) {
         self.image = notAvailableImage;
         if (operationAlreadyActive) {
-            [self cancelImageDownload];
+            [self mk_cancelImageDownload];
         }
         return;
     }
@@ -212,7 +212,7 @@ static char kMKNetworkOperationObjectKey;
     }
 }
 
-- (void)cancelImageDownload {
+- (void)mk_cancelImageDownload {
     [self.mk_imageOperation cancel];
     self.mk_imageOperation = nil;
     [self mk_cleanup];
