@@ -147,9 +147,9 @@ static char kMKNetworkOperationObjectKey;
         maskingImageView.tag = kMaskingViewTag;
         
         if (self.backgroundColor) {
-            maskingImageView.backgroundColor = [self.backgroundColor colorWithAlphaComponent:1.0];
+            maskingImageView.backgroundColor = self.backgroundColor;
         } else {
-            maskingImageView.backgroundColor = [UIColor whiteColor];
+            maskingImageView.backgroundColor = [UIColor clearColor];
         }
         [self addSubview:maskingImageView];
     }
