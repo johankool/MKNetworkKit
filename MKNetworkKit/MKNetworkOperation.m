@@ -3,7 +3,7 @@
 //  MKNetworkKit
 //
 //  Created by Mugunth Kumar (@mugunthkumar) on 11/11/11.
-//  Copyright (C) 2011-2020 by Steinlogic
+//  Copyright (C) 2011-2020 by Steinlogic Consulting and Training Pte Ltd
 
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -185,14 +185,16 @@
       }
         break;
       case MKNKPostDataEncodingTypeJSON: {
-        if([NSJSONSerialization class]) {
+        if(NSClassFromString(@"NSJSONSerialization")) {
+        [self.request setValue:
+         [NSString stringWithFormat:@"application/json; charset=%@", charset]
+            forHTTPHeaderField:@"Content-Type"];
+        }
+        else {
           [self.request setValue:
-           [NSString stringWithFormat:@"application/json; charset=%@", charset]
-              forHTTPHeaderField:@"Content-Type"];
-        } else {
-          [self.request setValue:
-           [NSString stringWithFormat:@"application/x-www-form-urlencoded; charset=%@", charset]
-              forHTTPHeaderField:@"Content-Type"];
+             [NSString stringWithFormat:@"application/x-www-form-urlencoded; charset=%@", charset]
+                forHTTPHeaderField:@"Content-Type"];
+
         }
       }
         break;
@@ -374,6 +376,8 @@
 - (void)encodeWithCoder:(NSCoder *)encoder 
 {
   [encoder encodeInteger:self.stringEncoding forKey:@"stringEncoding"];
+  [encoder encodeInteger:_postDataEncoding forKey:@"postDataEncoding"];
+
   [encoder encodeObject:self.uniqueId forKey:@"uniqueId"];
   [encoder encodeObject:self.request forKey:@"request"];
   [encoder encodeObject:self.response forKey:@"response"];
@@ -399,6 +403,7 @@
   self = [super init];
   if (self) {
     [self setStringEncoding:[decoder decodeIntegerForKey:@"stringEncoding"]];
+    _postDataEncoding = [decoder decodeIntegerForKey:@"postDataEncoding"];
     self.request = [decoder decodeObjectForKey:@"request"];
     self.uniqueId = [decoder decodeObjectForKey:@"uniqueId"];
     
@@ -424,6 +429,7 @@
 {
   MKNetworkOperation *theCopy = [[[self class] allocWithZone:zone] init];  // use designated initializer
   
+  theCopy.postDataEncoding = _postDataEncoding;
   [theCopy setStringEncoding:self.stringEncoding];
   [theCopy setUniqueId:[self.uniqueId copy]];
   
@@ -817,7 +823,7 @@
   
   if(!self.isCancelled) {
     
-    if ([self.request.HTTPMethod isEqualToString:@"POST"] || [self.request.HTTPMethod isEqualToString:@"PUT"]) {            
+    if (([self.request.HTTPMethod isEqualToString:@"POST"] || [self.request.HTTPMethod isEqualToString:@"PUT"]) && !self.request.HTTPBodyStream) {
       
       [self.request setHTTPBody:[self bodyData]];
     }
@@ -1086,7 +1092,7 @@
 
 - (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
   
-  if ([self.mutableData length] == 0 || [self.downloadStreams count] > 0) {
+  if (self.downloadedDataSize == 0) {
     // This is the first batch of data
     // Check for a range header and make changes as neccesary
     NSString *rangeString = [[self request] valueForHTTPHeaderField:@"Range"];
@@ -1232,18 +1238,18 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
 
 -(id) responseJSON {
   
-  if([NSJSONSerialization class]) {
-    if([self responseData] == nil) return nil;
-    NSError *error = nil;
-    id returnValue = [NSJSONSerialization JSONObjectWithData:[self responseData] options:0 error:&error];    
-    if(error) DLog(@"JSON Parsing Error: %@", error);
-    return returnValue;
-  } else {
-    DLog("No valid JSON Serializers found");
-    return [self responseString];
-  }
+    if(NSClassFromString(@"NSJSONSerialization")) {
+      if([self responseData] == nil) return nil;
+      NSError *error = nil;
+      id returnValue = [NSClassFromString(@"NSJSONSerialization") JSONObjectWithData:[self responseData] options:0 error:&error];
+      if(error) DLog(@"JSON Parsing Error: %@", error);
+      return returnValue;
+    }
+    else {
+      DLog("You are running on iOS 4. Subclass MKNO and override responseJSON to support custom JSON parsing");
+      return [self responseString];
+    }
 }
-
 
 #pragma mark -
 #pragma mark Overridable methods
