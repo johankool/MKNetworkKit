@@ -162,6 +162,8 @@ static char kMKNetworkOperationObjectKey;
         }
     }
     
+    //__weak typeof(self) weakSelf = self;
+    UIImageView *weakSelf = self;
     void (^completionBlock)(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) = ^(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) {
         if (!fetchedImage) {
             fetchedImage = notAvailableImage;
@@ -180,15 +182,15 @@ static char kMKNetworkOperationObjectKey;
                              completion:^(BOOL finished) {
                                  if (finished) {
                                      // Set image and cleanup
-                                     self.image = fetchedImage;
+                                     weakSelf.image = fetchedImage;
                                      [temporaryImageView removeFromSuperview];
                                      [maskingImageView removeFromSuperview];
                                  }
                              }];
         } else {
             // Set image and cleanup
-            self.image = fetchedImage;
-            [self mk_cleanup];
+            weakSelf.image = fetchedImage;
+            [weakSelf mk_cleanup];
             [temporaryImageView removeFromSuperview];
             [maskingImageView removeFromSuperview];
         }
