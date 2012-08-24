@@ -162,8 +162,7 @@ static char kMKNetworkOperationObjectKey;
         }
     }
     
-    //__weak typeof(self) weakSelf = self;
-    UIImageView *weakSelf = self;
+    __weak typeof(self) weakSelf = self;
     void (^completionBlock)(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) = ^(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) {
         if (!fetchedImage) {
             fetchedImage = notAvailableImage;
