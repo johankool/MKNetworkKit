@@ -32,9 +32,9 @@
 }
 
 -(void) prepareForReuse {
-    
+    [super prepareForReuse];
+    [self.thumbnailImage mk_cancelImageDownload];
     self.thumbnailImage.image = nil;
-    [self.thumbnailImage cancelImageDownload];
 }
 
 - (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
@@ -62,7 +62,7 @@
      [thisFlickrImage objectForKey:@"farm"], [thisFlickrImage objectForKey:@"server"], 
      [thisFlickrImage objectForKey:@"id"], [thisFlickrImage objectForKey:@"secret"]];
     
-    [self.thumbnailImage setImageAtURL:[NSURL URLWithString:self.loadingImageURLString]];
+    [self.thumbnailImage mk_setImageAtURL:[NSURL URLWithString:self.loadingImageURLString]];
 }
 
 @end
