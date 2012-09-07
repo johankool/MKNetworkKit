@@ -162,7 +162,11 @@ static char kMKNetworkOperationObjectKey;
         }
     }
     
+#if __has_feature(objc_arc_weak)
     __weak typeof(self) weakSelf = self;
+#else
+    __unsafe_unretained typeof(self) weakSelf = self;
+#endif
     void (^completionBlock)(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) = ^(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) {
         if (!fetchedImage) {
             fetchedImage = notAvailableImage;
