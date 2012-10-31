@@ -96,14 +96,22 @@ static char kMKNetworkOperationObjectKey;
 }
 
 - (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine {
-    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil];
+    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil onCompletion:nil];
 }
 
 - (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
-    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage];
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:nil];
+}
+
+- (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:onCompletion];
 }
 
 - (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
+    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:nil];
+}
+
+- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
     NSParameterAssert(engine);
     
     // Don't restart same URL
@@ -168,7 +176,8 @@ static char kMKNetworkOperationObjectKey;
     __unsafe_unretained typeof(self) weakSelf = self;
 #endif
     void (^completionBlock)(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) = ^(UIImage *fetchedImage, NSURL *URL, BOOL isInCache) {
-        if (!fetchedImage) {
+        BOOL success = (fetchedImage != nil);
+        if (!success) {
             fetchedImage = notAvailableImage;
         }
         
@@ -177,11 +186,11 @@ static char kMKNetworkOperationObjectKey;
             temporaryImageView.image = fetchedImage;
             temporaryImageView.alpha = 0;
             maskingImageView.alpha = 1;
-            [UIView animateWithDuration:0.4 
-                             animations:^{ 
+            [UIView animateWithDuration:0.4
+                             animations:^{
                                  temporaryImageView.alpha = 1;
                                  maskingImageView.alpha = 0;
-                             } 
+                             }
                              completion:^(BOOL finished) {
                                  if (finished) {
                                      // Set image and cleanup
@@ -196,6 +205,10 @@ static char kMKNetworkOperationObjectKey;
             [weakSelf mk_cleanup];
             [temporaryImageView removeFromSuperview];
             [maskingImageView removeFromSuperview];
+        }
+        
+        if (onCompletion) {
+            onCompletion(success);
         }
     };
     
@@ -221,6 +234,10 @@ static char kMKNetworkOperationObjectKey;
     [self.mk_imageOperation cancel];
     self.mk_imageOperation = nil;
     [self mk_cleanup];
+}
+
+- (BOOL)mk_isLoading {
+    return (self.mk_imageOperation !=  nil);
 }
 
 @end
