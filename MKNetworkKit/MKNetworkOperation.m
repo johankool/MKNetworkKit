@@ -72,7 +72,7 @@
 @property (strong, nonatomic) NSError *error;
 
 - (id)initWithURLString:(NSString *)aURLString
-                 params:(NSMutableDictionary *)body
+                 params:(NSDictionary *)body
              httpMethod:(NSString *)method;
 
 -(NSData*) bodyData;
@@ -84,54 +84,8 @@
 @end
 
 @implementation MKNetworkOperation
-@synthesize postDataEncodingHandler = _postDataEncodingHandler;
 
-@synthesize stringEncoding = _stringEncoding;
 @dynamic freezable;
-@synthesize uniqueId = _uniqueId; // freezable operations have a unique id
-
-@synthesize connection = _connection;
-
-@synthesize request = _request;
-@synthesize response = _response;
-
-@synthesize fieldsToBePosted = _fieldsToBePosted;
-@synthesize filesToBePosted = _filesToBePosted;
-@synthesize dataToBePosted = _dataToBePosted;
-
-@synthesize username = _username;
-@synthesize password = _password;
-@synthesize clientCertificate = _clientCertificate;
-@synthesize authHandler = _authHandler;
-@synthesize operationStateChangedHandler = _operationStateChangedHandler;
-
-@synthesize responseBlocks = _responseBlocks;
-@synthesize errorBlocks = _errorBlocks;
-
-@synthesize isCancelled = _isCancelled;
-@synthesize mutableData = _mutableData;
-@synthesize downloadedDataSize = _downloadedDataSize;
-
-@synthesize uploadProgressChangedHandlers = _uploadProgressChangedHandlers;
-@synthesize downloadProgressChangedHandlers = _downloadProgressChangedHandlers;
-
-@synthesize downloadStreams = _downloadStreams;
-
-@synthesize cachedResponse = _cachedResponse;
-@synthesize cacheHandlingBlock = _cacheHandlingBlock;
-@synthesize credentialPersistence = _credentialPersistence;
-
-@synthesize startPosition = _startPosition;
-
-#if TARGET_OS_IPHONE    
-@synthesize backgroundTaskId = _backgroundTaskId;
-@synthesize localNotification = localNotification_;
-@synthesize shouldShowLocalNotificationOnError = shouldShowLocalNotificationOnError_;
-#endif
-
-@synthesize cacheHeaders = _cacheHeaders;
-@synthesize error = _error;
-
 
 // A RESTful service should always return the same response for a given URL and it's parameters.
 // this means if these values are correct, you can cache the responses
@@ -399,7 +353,7 @@
   self = [super init];
   if (self) {
     [self setStringEncoding:[decoder decodeIntegerForKey:@"stringEncoding"]];
-    _postDataEncoding = [decoder decodeIntegerForKey:@"postDataEncoding"];
+    _postDataEncoding = (MKNKPostDataEncodingType) [decoder decodeIntegerForKey:@"postDataEncoding"];
     self.request = [decoder decodeObjectForKey:@"request"];
     self.uniqueId = [decoder decodeObjectForKey:@"uniqueId"];
     
@@ -478,8 +432,8 @@
 
 -(void) updateOperationBasedOnPreviousHeaders:(NSMutableDictionary*) headers {
   
-  NSString *lastModified = [headers objectForKey:@"Last-Modified"];
-  NSString *eTag = [headers objectForKey:@"ETag"];
+  NSString *lastModified = headers[@"Last-Modified"];
+  NSString *eTag = headers[@"ETag"];
   if(lastModified) {
     [self.request setValue:lastModified forHTTPHeaderField:@"IF-MODIFIED-SINCE"];
   }
@@ -532,7 +486,7 @@
 }
 
 - (id)initWithURLString:(NSString *)aURLString
-                 params:(NSMutableDictionary *)params
+                 params:(NSDictionary *)params
              httpMethod:(NSString *)method
 
 {	
@@ -554,7 +508,7 @@
     NSURL *finalURL = nil;
     
     if(params)
-      self.fieldsToBePosted = params;
+      self.fieldsToBePosted = [params mutableCopy];
     
     self.stringEncoding = NSUTF8StringEncoding; // use a delegate to get these values later
     
@@ -651,8 +605,8 @@
     [self.filesToBePosted enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
       
       NSDictionary *thisFile = (NSDictionary*) obj;
-      [displayString appendFormat:@" -F \"%@=@%@;type=%@\"", [thisFile objectForKey:@"name"],
-       [thisFile objectForKey:@"filepath"], [thisFile objectForKey:@"mimetype"]];
+      [displayString appendFormat:@" -F \"%@=@%@;type=%@\"", thisFile[@"name"],
+       thisFile[@"filepath"], thisFile[@"mimetype"]];
     }];
     
     /* Not sure how to do this via curl
@@ -678,12 +632,10 @@
       [self.request setHTTPMethod:@"POST"];
   }
   
-  NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
-                        data, @"data",
-                        key, @"name",
-                        mimeType, @"mimetype",
-                        fileName, @"filename",     
-                        nil];
+  NSDictionary *dict = @{@"data": data,
+                        @"name": key,
+                        @"mimetype": mimeType,
+                        @"filename": fileName};
   
   [self.dataToBePosted addObject:dict];    
 }
@@ -699,11 +651,9 @@
       [self.request setHTTPMethod:@"POST"];
   }
   
-  NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
-                        filePath, @"filepath",
-                        key, @"name",
-                        mimeType, @"mimetype",     
-                        nil];
+  NSDictionary *dict = @{@"filepath": filePath,
+                        @"name": key,
+                        @"mimetype": mimeType};
   
   [self.filesToBePosted addObject:dict];    
 }
@@ -735,12 +685,12 @@
     NSString *thisFieldString = [NSString stringWithFormat:
                                  @"--%@\r\nContent-Disposition: form-data; name=\"%@\"; filename=\"%@\"\r\nContent-Type: %@\r\nContent-Transfer-Encoding: binary\r\n\r\n",
                                  boundary, 
-                                 [thisFile objectForKey:@"name"], 
-                                 [[thisFile objectForKey:@"filepath"] lastPathComponent], 
-                                 [thisFile objectForKey:@"mimetype"]];
+                                 thisFile[@"name"], 
+                                 [thisFile[@"filepath"] lastPathComponent], 
+                                 thisFile[@"mimetype"]];
     
     [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];         
-    [body appendData: [NSData dataWithContentsOfFile:[thisFile objectForKey:@"filepath"]]];
+    [body appendData: [NSData dataWithContentsOfFile:thisFile[@"filepath"]]];
     [body appendData:[@"\r\n" dataUsingEncoding:[self stringEncoding]]];
   }];
   
@@ -750,17 +700,17 @@
     NSString *thisFieldString = [NSString stringWithFormat:
                                  @"--%@\r\nContent-Disposition: form-data; name=\"%@\"; filename=\"%@\"\r\nContent-Type: %@\r\nContent-Transfer-Encoding: binary\r\n\r\n",
                                  boundary, 
-                                 [thisDataObject objectForKey:@"name"], 
-                                 [thisDataObject objectForKey:@"filename"], 
-                                 [thisDataObject objectForKey:@"mimetype"]];
+                                 thisDataObject[@"name"], 
+                                 thisDataObject[@"filename"], 
+                                 thisDataObject[@"mimetype"]];
     
     [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];         
-    [body appendData:[thisDataObject objectForKey:@"data"]];
+    [body appendData:thisDataObject[@"data"]];
     [body appendData:[@"\r\n" dataUsingEncoding:[self stringEncoding]]];
   }];
   
   if (postLength >= 1)
-    [self.request setValue:[NSString stringWithFormat:@"%u", postLength] forHTTPHeaderField:@"content-length"];
+    [self.request setValue:[NSString stringWithFormat:@"%lu", (unsigned long) postLength] forHTTPHeaderField:@"Content-Length"];
   
   [body appendData: [[NSString stringWithFormat:@"--%@--\r\n", boundary] dataUsingEncoding:self.stringEncoding]];
   
@@ -770,7 +720,7 @@
     [self.request setValue:[NSString stringWithFormat:@"multipart/form-data; charset=%@; boundary=%@", charset, boundary] 
         forHTTPHeaderField:@"Content-Type"];
     
-    [self.request setValue:[NSString stringWithFormat:@"%d", [body length]] forHTTPHeaderField:@"Content-Length"];
+    [self.request setValue:[NSString stringWithFormat:@"%lu", (unsigned long) [body length]] forHTTPHeaderField:@"Content-Length"];
   }
   
   return body;
@@ -1035,11 +985,11 @@
     
     // We have all this complicated cache handling since NSURLRequestReloadRevalidatingCacheData is not implemented
     // do cache processing only if the request is a "GET" method
-    NSString *lastModified = [httpHeaders objectForKey:@"Last-Modified"];
-    NSString *eTag = [httpHeaders objectForKey:@"ETag"];
-    NSString *expiresOn = [httpHeaders objectForKey:@"Expires"];
+    NSString *lastModified = httpHeaders[@"Last-Modified"];
+    NSString *eTag = httpHeaders[@"ETag"];
+    NSString *expiresOn = httpHeaders[@"Expires"];
     
-    NSString *contentType = [httpHeaders objectForKey:@"Content-Type"];
+    NSString *contentType = httpHeaders[@"Content-Type"];
     // if contentType is image, 
     
     NSDate *expiresOnDate = nil;
@@ -1053,7 +1003,7 @@
         expiresOnDate = [[NSDate date] dateByAddingTimeInterval:kMKNetworkKitDefaultImageHeadRequestDuration];
     }
     
-    NSString *cacheControl = [httpHeaders objectForKey:@"Cache-Control"]; // max-age, must-revalidate, no-cache
+    NSString *cacheControl = httpHeaders[@"Cache-Control"]; // max-age, must-revalidate, no-cache
     NSArray *cacheControlEntities = [cacheControl componentsSeparatedByString:@","];
     
     for(NSString *substring in cacheControlEntities) {
@@ -1064,7 +1014,7 @@
         NSString *maxAge = nil;
         NSArray *array = [substring componentsSeparatedByString:@"="];
         if([array count] > 1)
-          maxAge = [array objectAtIndex:1];
+          maxAge = array[1];
         
         expiresOnDate = [[NSDate date] dateByAddingTimeInterval:[maxAge intValue]];
       }
@@ -1082,11 +1032,11 @@
     
     // now remember lastModified, eTag and expires for this request in cache
     if(expiresOn)
-      [self.cacheHeaders setObject:expiresOn forKey:@"Expires"];
+      (self.cacheHeaders)[@"Expires"] = expiresOn;
     if(lastModified)
-      [self.cacheHeaders setObject:lastModified forKey:@"Last-Modified"];
+      (self.cacheHeaders)[@"Last-Modified"] = lastModified;
     if(eTag)
-      [self.cacheHeaders setObject:eTag forKey:@"ETag"];
+      (self.cacheHeaders)[@"ETag"] = eTag;
   }
 }
 
@@ -1224,6 +1174,67 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   
   return [UIImage imageWithData:[self responseData]];
 }
+
+-(void) decompressedResponseImageOfSize:(CGSize) size completionHandler:(void (^)(UIImage *decompressedImage)) imageDecompressionHandler {
+  
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+    
+    __block CGSize targetSize = size;
+    UIImage *image = [self responseImage];
+    CGImageRef imageRef = image.CGImage;
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGImageAlphaInfo alphaInfo = CGImageGetAlphaInfo(imageRef);
+    BOOL sameSize = NO;
+    if (CGSizeEqualToSize(targetSize, CGSizeMake(CGImageGetWidth(imageRef), CGImageGetHeight(imageRef)))) {
+      targetSize = CGSizeMake(1, 1);
+      sameSize = YES;
+    }
+    
+    static float scale = 0.0f;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+      scale = [UIScreen mainScreen].scale;
+    });
+    
+    size_t imageWidth = (size_t)targetSize.width * scale;
+    size_t imageHeight = (size_t)targetSize.height * scale;
+
+    CGContextRef context = CGBitmapContextCreate(NULL,
+                                                 imageWidth,
+                                                 imageHeight,
+                                                 8,
+                                                 // Just always return width * 4 will be enough
+                                                 imageWidth * 4,
+                                                 // System only supports RGB, set explicitly
+                                                 colorSpace,
+                                                 // Makes system don't need to do extra conversion when displayed.
+                                                 alphaInfo | kCGBitmapByteOrder32Little);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) {
+      return;
+    }
+    
+    
+    CGRect rect = (CGRect){CGPointZero, {imageWidth, imageHeight}};
+    CGContextDrawImage(context, rect, imageRef);
+    if (sameSize) {
+      CGContextRelease(context);
+      dispatch_async(dispatch_get_main_queue(), ^{
+        imageDecompressionHandler(image);
+      });
+      return;
+    }
+    CGImageRef decompressedImageRef = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    
+    UIImage *decompressedImage = [[UIImage alloc] initWithCGImage:decompressedImageRef scale:image.scale orientation:image.imageOrientation];
+    CGImageRelease(decompressedImageRef);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      imageDecompressionHandler(decompressedImage);
+    });    
+  });
+}
+
 #elif TARGET_OS_MAC
 -(NSImage*) responseImage {
   
