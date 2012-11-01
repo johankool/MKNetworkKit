@@ -117,7 +117,9 @@ static char kMKNetworkOperationObjectKey;
         [self mk_cancelImageDownload];
     }
     
-    self.image = loadingImage;
+    if (loadingImage) {
+        self.image = loadingImage;
+    }
     
     if (!imageURL) {
         self.image = notAvailableImage;
@@ -142,9 +144,12 @@ static char kMKNetworkOperationObjectKey;
             fetchedImage = notAvailableImage;
         }
         
-        [UIView animateWithDuration:(!fadeIn || isInCache) ? 0.0f : 0.4f delay:0 options:UIViewAnimationOptionShowHideTransitionViews animations:^{
+        UIView *activityIndicator = [weakSelf viewWithTag:kActivityIndicatorTag];
+        [UIView transitionWithView:weakSelf duration:fadeIn ? 0.4f : 0.0f options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             weakSelf.image = fetchedImage;
+            activityIndicator.alpha = 0.0f;
         } completion:^(BOOL finished){
+            [activityIndicator removeFromSuperview];
             if (onCompletion) {
                 onCompletion(success, isInCache);
             }
@@ -172,7 +177,7 @@ static char kMKNetworkOperationObjectKey;
             if (decompress) {
                 [completedOperation decompressedResponseImageOfSize:size
                                                   completionHandler:^(UIImage *decompressedImage) {
-                                                        completionBlock(decompressedImage, imageURL, [completedOperation isCachedResponse]);
+                                                      completionBlock(decompressedImage, imageURL, [completedOperation isCachedResponse]);
                                                   }];
             } else {
                 completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);

@@ -63,7 +63,7 @@ typedef void (^MKNKImageLoadCompletionBlock) (BOOL success, BOOL fromCache);
  *  @param showActivityIndicator Wether a spinning indicator should be shown during loading
  *  @param indicatorStyle The style of the spinning indicator
  *  @param loadingImage The image to show while loading
- *  @param fadeIn Wether the loaded image should be faded in, images retrieved from cache are never faded in but shown directly
+ *  @param fadeIn Wether the loaded image should be faded in
  *  @param notAvailableImage The image to show if no image could be retrieved
  *
  *  @discussion
@@ -79,7 +79,7 @@ typedef void (^MKNKImageLoadCompletionBlock) (BOOL success, BOOL fromCache);
  *  @param showActivityIndicator Wether a spinning indicator should be shown during loading
  *  @param indicatorStyle The style of the spinning indicator
  *  @param loadingImage The image to show while loading
- *  @param fadeIn Wether the loaded image should be faded in, images retrieved from cache are never faded in but shown directly
+ *  @param fadeIn Wether the loaded image should be faded in
  *  @param notAvailableImage The image to show if no image could be retrieved
  *  @param size The size of the image, pass CGSizeZero if unknown or background decompressing is not desired
  *  @param onCompletion Block executed when the image is loaded
@@ -98,7 +98,7 @@ typedef void (^MKNKImageLoadCompletionBlock) (BOOL success, BOOL fromCache);
  *  @param showActivityIndicator Wether a spinning indicator should be shown during loading
  *  @param indicatorStyle The style of the spinning indicator
  *  @param loadingImage The image to show while loading
- *  @param fadeIn Wether the loaded image should be faded in, images retrieved from cache are never faded in but shown directly
+ *  @param fadeIn Wether the loaded image should be faded in
  *  @param notAvailableImage The image to show if no image could be retrieved
  *  @param size The size of the image, pass CGSizeZero if unknown or background decompressing is not desired
  *  @param onCompletion Block executed when the image is loaded

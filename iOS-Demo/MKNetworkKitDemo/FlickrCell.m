@@ -9,13 +9,6 @@
 #import "FlickrCell.h"
 
 @implementation FlickrCell
-<<<<<<< HEAD
-@synthesize titleLabel = titleLabel_;
-@synthesize authorNameLabel = authorNameLabel_;
-@synthesize thumbnailImage = thumbnailImage_;
-@synthesize loadingImageURLString = loadingImageURLString_;
-=======
->>>>>>> ee6437b9eb37024aecf43666e7e769ce6c586aff
 
 //=========================================================== 
 // + (BOOL)automaticallyNotifiesObserversForKey:
@@ -65,19 +58,19 @@
      thisFlickrImage[@"farm"], thisFlickrImage[@"server"], 
      thisFlickrImage[@"id"], thisFlickrImage[@"secret"]];
     
-    [self.thumbnailImage mk_setImageAtURL:[NSURL URLWithString:self.loadingImageURLString]];
+    [self.thumbnailImage mk_setImageAtURL:[NSURL URLWithString:self.loadingImageURLString] onCompletion:nil];
 
- self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString]
-                                                                      size:self.thumbnailImage.frame.size
-                                 onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
-                                    
-                                     if([self.loadingImageURLString isEqualToString:[url absoluteString]]) {
-                                        
-                                       [UIView animateWithDuration:isInCache?0.0f:0.4f delay:0 options:UIViewAnimationOptionShowHideTransitionViews animations:^{
-                                         self.thumbnailImage.image = fetchedImage;
-                                       } completion:nil];
-                                     }
-                                 }];
+// self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString]
+//                                                                      size:self.thumbnailImage.frame.size
+//                                 onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
+//                                    
+//                                     if([self.loadingImageURLString isEqualToString:[url absoluteString]]) {
+//                                        
+//                                       [UIView animateWithDuration:isInCache?0.0f:0.4f delay:0 options:UIViewAnimationOptionShowHideTransitionViews animations:^{
+//                                         self.thumbnailImage.image = fetchedImage;
+//                                       } completion:nil];
+//                                     }
+//                                 }];
 
 }
 
