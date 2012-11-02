@@ -158,7 +158,7 @@ static char kMKNetworkOperationObjectKey;
     
     BOOL decompress = !CGSizeEqualToSize(size, CGSizeZero);
     if (operationAlreadyActive) {
-        [self.mk_imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+        [self.mk_imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
             if (decompress) {
                 [completedOperation decompressedResponseImageOfSize:size
                                                   completionHandler:^(UIImage *decompressedImage) {
@@ -167,13 +167,13 @@ static char kMKNetworkOperationObjectKey;
             } else {
                 completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
             }
-        } onError:^(NSError *error) {
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
     } else {
         CGSize size = self.bounds.size;
         MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
-        [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+        [imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
             if (decompress) {
                 [completedOperation decompressedResponseImageOfSize:size
                                                   completionHandler:^(UIImage *decompressedImage) {
@@ -182,7 +182,7 @@ static char kMKNetworkOperationObjectKey;
             } else {
                 completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
             }
-        } onError:^(NSError *error) {
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
         self.mk_imageOperation = imageOperation;
