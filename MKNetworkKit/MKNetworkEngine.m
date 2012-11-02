@@ -30,6 +30,12 @@
 #error MKNetworkKit does not support Objective-C Garbage Collection
 #endif
 
+#if TARGET_OS_IPHONE
+#ifndef __IPHONE_5_0
+#error MKNetworkKit does not support iOS 4 and lower
+#endif
+#endif
+
 #if ! __has_feature(objc_arc)
 #error MKNetworkKit is ARC only. Either turn on ARC for the project or use -fobjc-arc flag
 #endif
@@ -44,6 +50,7 @@
 @property (nonatomic, strong) NSMutableDictionary *memoryCache;
 @property (nonatomic, strong) NSMutableArray *memoryCacheKeys;
 @property (nonatomic, strong) NSMutableDictionary *cacheInvalidationParams;
+@property (assign, nonatomic) dispatch_queue_t backgroundCacheQueue;
 
 -(void) saveCache;
 -(void) saveCacheData:(NSData*) data forKey:(NSString*) cacheDataKey;
@@ -91,6 +98,7 @@ static NSOperationQueue *_sharedNetworkQueue;
   if((self = [super init])) {
     
     self.apiPath = apiPath;
+    self.backgroundCacheQueue = dispatch_queue_create("com.mknetworkkit.cachequeue", DISPATCH_QUEUE_SERIAL);
     
     if(hostName) {
       [[NSNotificationCenter defaultCenter] addObserver:self
@@ -457,21 +465,23 @@ static NSOperationQueue *_sharedNetworkQueue;
   
   MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
   
-  [op
-   onCompletion:^(MKNetworkOperation *completedOperation)
-   {
-     [completedOperation decompressedResponseImageOfSize:size
-                                       completionHandler:^(UIImage *decompressedImage) {
-                                         
-                                         imageFetchedBlock(decompressedImage,
-                                                           url,
-                                                           [completedOperation isCachedResponse]);
-                                       }];
-   }
-   onError:^(NSError* error) {
-     
-     DLog(@"%@", error);
-   }];
+  [op addCompletionHandler:^(MKNetworkOperation *completedOperation) {
+    [completedOperation decompressedResponseImageOfSize:size
+                                      completionHandler:^(UIImage *decompressedImage) {
+                                        
+                                        imageFetchedBlock(decompressedImage,
+                                                          url,
+                                                          [completedOperation isCachedResponse]);
+                                      }];
+  } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
+
+    DLog(@"%@", error);
+  }];
+  
+  [op onNotModified:^{
+    
+    DLog(@"Not modified");
+  }];
   
   [self enqueueOperation:op];
   
@@ -492,20 +502,16 @@ static NSOperationQueue *_sharedNetworkQueue;
   
   MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
   
-  [op
-   onCompletion:^(MKNetworkOperation *completedOperation)
-   {
-     imageFetchedBlock([completedOperation responseImage],
-                       url,
-                       [completedOperation isCachedResponse]);
-     
-   }
-   onError:^(NSError* error) {
-       imageFetchedBlock(nil, 
-                         url,
-                         NO);
-     DLog(@"%@", error);
-   }];
+  [op addCompletionHandler:^(MKNetworkOperation *completedOperation) {
+    
+    imageFetchedBlock([completedOperation responseImage],
+                      url,
+                      [completedOperation isCachedResponse]);
+    
+  } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
+    
+    DLog(@"%@", error);
+  }];
   
   [self enqueueOperation:op];
   
@@ -516,10 +522,15 @@ static NSOperationQueue *_sharedNetworkQueue;
 #pragma mark Cache related
 
 -(NSString*) cacheDirectoryName {
+
+  static NSString *cacheDirectoryName = nil;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = paths[0];
+    cacheDirectoryName = [documentsDirectory stringByAppendingPathComponent:MKNETWORKCACHE_DEFAULT_DIRECTORY];
+  });
   
-  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-  NSString *documentsDirectory = paths[0];
-  NSString *cacheDirectoryName = [documentsDirectory stringByAppendingPathComponent:MKNETWORKCACHE_DEFAULT_DIRECTORY];
   return cacheDirectoryName;
 }
 
@@ -552,7 +563,8 @@ static NSOperationQueue *_sharedNetworkQueue;
 
 -(void) saveCacheData:(NSData*) data forKey:(NSString*) cacheDataKey
 {
-  @synchronized(self) {
+  dispatch_async(self.backgroundCacheQueue, ^{
+    
     (self.memoryCache)[cacheDataKey] = data;
     
     NSUInteger index = [self.memoryCacheKeys indexOfObject:cacheDataKey];
@@ -578,7 +590,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       [self.memoryCacheKeys removeLastObject];
       [self.memoryCache removeObjectForKey:lastKey];
     }
-  }
+  });
 }
 
 /*

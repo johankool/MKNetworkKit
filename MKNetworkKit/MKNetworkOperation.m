@@ -29,6 +29,12 @@
 #error MKNetworkKit does not support Objective-C Garbage Collection
 #endif
 
+#if TARGET_OS_IPHONE
+#ifndef __IPHONE_5_0
+#error MKNetworkKit does not support iOS 4 and lower
+#endif
+#endif
+
 #if ! __has_feature(objc_arc)
 #error MKNetworkKit is ARC only. Either turn on ARC for the project or use -fobjc-arc flag
 #endif
@@ -48,12 +54,15 @@
 
 @property (nonatomic, strong) NSMutableArray *responseBlocks;
 @property (nonatomic, strong) NSMutableArray *errorBlocks;
+@property (nonatomic, strong) NSMutableArray *errorBlocksType2;
 
 @property (nonatomic, assign) MKNetworkOperationState state;
 @property (nonatomic, assign) BOOL isCancelled;
 
 @property (strong, nonatomic) NSMutableData *mutableData;
 @property (assign, nonatomic) NSUInteger downloadedDataSize;
+
+@property (nonatomic, strong) NSMutableArray *notModifiedHandlers;
 
 @property (nonatomic, strong) NSMutableArray *uploadProgressChangedHandlers;
 @property (nonatomic, strong) NSMutableArray *downloadProgressChangedHandlers;
@@ -65,7 +74,7 @@
 @property (nonatomic, strong) NSData *cachedResponse;
 @property (nonatomic, copy) MKNKResponseBlock cacheHandlingBlock;
 
-#if TARGET_OS_IPHONE    
+#if TARGET_OS_IPHONE
 @property (nonatomic, assign) UIBackgroundTaskIdentifier backgroundTaskId;
 #endif
 
@@ -98,11 +107,11 @@
 }
 
 
-//=========================================================== 
+//===========================================================
 // + (BOOL)automaticallyNotifiesObserversForKey:
 //
-//=========================================================== 
-+ (BOOL)automaticallyNotifiesObserversForKey: (NSString *)theKey 
+//===========================================================
++ (BOOL)automaticallyNotifiesObserversForKey: (NSString *)theKey
 {
   BOOL automatic;
   
@@ -115,9 +124,9 @@
   return automatic;
 }
 
-//=========================================================== 
-//  postDataEncoding 
-//=========================================================== 
+//===========================================================
+//  postDataEncoding
+//===========================================================
 - (MKNKPostDataEncodingType)postDataEncoding
 {
   return _postDataEncoding;
@@ -137,17 +146,9 @@
     }
       break;
     case MKNKPostDataEncodingTypeJSON: {
-      if(NSClassFromString(@"NSJSONSerialization")) {
       [self.request setValue:
        [NSString stringWithFormat:@"application/json; charset=%@", charset]
           forHTTPHeaderField:@"Content-Type"];
-      }
-      else {
-        [self.request setValue:
-           [NSString stringWithFormat:@"application/x-www-form-urlencoded; charset=%@", charset]
-              forHTTPHeaderField:@"Content-Type"];
-
-      }
     }
       break;
     case MKNKPostDataEncodingTypePlist: {
@@ -165,9 +166,9 @@
   
   NSString *returnValue = @"";
   if(self.postDataEncodingHandler)
-    returnValue = self.postDataEncodingHandler(self.fieldsToBePosted);    
+    returnValue = self.postDataEncodingHandler(self.fieldsToBePosted);
   else if(self.postDataEncoding == MKNKPostDataEncodingTypeURL)
-    returnValue = [self.fieldsToBePosted urlEncodedKeyValueString];    
+    returnValue = [self.fieldsToBePosted urlEncodedKeyValueString];
   else if(self.postDataEncoding == MKNKPostDataEncodingTypeJSON)
     returnValue = [self.fieldsToBePosted jsonEncodedKeyValueString];
   else if(self.postDataEncoding == MKNKPostDataEncodingTypePlist)
@@ -184,9 +185,9 @@
    [NSString stringWithFormat:@"%@; charset=%@", contentType, charset]
       forHTTPHeaderField:@"Content-Type"];
 }
-//=========================================================== 
-//  freezable 
-//=========================================================== 
+//===========================================================
+//  freezable
+//===========================================================
 - (BOOL)freezable
 {
   return _freezable;
@@ -227,7 +228,7 @@
 
 - (void)setFreezable:(BOOL)flag
 {
-  // get method cannot be frozen. 
+  // get method cannot be frozen.
   // No point in freezing a method that doesn't change server state.
   if([self.request.HTTPMethod isEqualToString:@"GET"] && flag) return;
   _freezable = flag;
@@ -277,7 +278,7 @@
   if(![self isCacheable]) return;
   if(!([self.response statusCode] >= 200 && [self.response statusCode] < 300)) return;
   
-  if(![self isCancelled])   
+  if(![self isCancelled])
     self.cacheHandlingBlock(self);
 }
 
@@ -323,11 +324,11 @@
   }
 }
 
-- (void)encodeWithCoder:(NSCoder *)encoder 
+- (void)encodeWithCoder:(NSCoder *)encoder
 {
   [encoder encodeInteger:self.stringEncoding forKey:@"stringEncoding"];
   [encoder encodeInteger:_postDataEncoding forKey:@"postDataEncoding"];
-
+  
   [encoder encodeObject:self.uniqueId forKey:@"uniqueId"];
   [encoder encodeObject:self.request forKey:@"request"];
   [encoder encodeObject:self.response forKey:@"response"];
@@ -348,7 +349,7 @@
   [encoder encodeInteger:self.credentialPersistence forKey:@"credentialPersistence"];
 }
 
-- (id)initWithCoder:(NSCoder *)decoder 
+- (id)initWithCoder:(NSCoder *)decoder
 {
   self = [super init];
   if (self) {
@@ -394,10 +395,12 @@
   [theCopy setClientCertificate:[self.clientCertificate copy]];
   [theCopy setResponseBlocks:[self.responseBlocks copy]];
   [theCopy setErrorBlocks:[self.errorBlocks copy]];
+  [theCopy setErrorBlocksType2:[self.errorBlocksType2 copy]];
   [theCopy setState:self.state];
   [theCopy setIsCancelled:self.isCancelled];
   [theCopy setMutableData:[self.mutableData copy]];
   [theCopy setDownloadedDataSize:self.downloadedDataSize];
+  [theCopy setNotModifiedHandlers:[self.notModifiedHandlers copy]];
   [theCopy setUploadProgressChangedHandlers:[self.uploadProgressChangedHandlers copy]];
   [theCopy setDownloadProgressChangedHandlers:[self.downloadProgressChangedHandlers copy]];
   [theCopy setDownloadStreams:[self.downloadStreams copy]];
@@ -419,6 +422,8 @@
   
   [self.responseBlocks addObjectsFromArray:operation.responseBlocks];
   [self.errorBlocks addObjectsFromArray:operation.errorBlocks];
+  [self.errorBlocksType2 addObjectsFromArray:operation.errorBlocksType2];
+  [self.notModifiedHandlers addObjectsFromArray:operation.notModifiedHandlers];
   [self.uploadProgressChangedHandlers addObjectsFromArray:operation.uploadProgressChangedHandlers];
   [self.downloadProgressChangedHandlers addObjectsFromArray:operation.downloadProgressChangedHandlers];
   [self.downloadStreams addObjectsFromArray:operation.downloadStreams];
@@ -426,7 +431,7 @@
 
 -(void) setCachedData:(NSData*) cachedData {
   
-  self.cachedResponse = cachedData;    
+  self.cachedResponse = cachedData;
   [self operationSucceeded];
 }
 
@@ -440,7 +445,7 @@
   
   if(eTag) {
     [self.request setValue:eTag forHTTPHeaderField:@"IF-NONE-MATCH"];
-  }    
+  }
 }
 
 -(void) setUsername:(NSString*) username password:(NSString*) password {
@@ -461,6 +466,19 @@
   
   [self.responseBlocks addObject:[response copy]];
   [self.errorBlocks addObject:[error copy]];
+}
+
+-(void) addCompletionHandler:(MKNKResponseBlock)response errorHandler:(MKNKResponseErrorBlock)error {
+  
+  if(response)
+    [self.responseBlocks addObject:[response copy]];
+  if(error)
+    [self.errorBlocksType2 addObject:[error copy]];
+}
+
+-(void) onNotModified:(MKNKVoidBlock)notModifiedBlock {
+  
+  [self.notModifiedHandlers addObject:[notModifiedBlock copy]];
 }
 
 -(void) onUploadProgressChanged:(MKNKProgressBlock) uploadProgressBlock {
@@ -489,16 +507,17 @@
                  params:(NSDictionary *)params
              httpMethod:(NSString *)method
 
-{	
+{
   if((self = [super init])) {
     
     self.responseBlocks = [NSMutableArray array];
-    self.errorBlocks = [NSMutableArray array];        
-    
+    self.errorBlocks = [NSMutableArray array];
+    self.errorBlocksType2 = [NSMutableArray array];
     self.filesToBePosted = [NSMutableArray array];
     self.dataToBePosted = [NSMutableArray array];
     self.fieldsToBePosted = [NSMutableDictionary dictionary];
     
+    self.notModifiedHandlers = [NSMutableArray array];
     self.uploadProgressChangedHandlers = [NSMutableArray array];
     self.downloadProgressChangedHandlers = [NSMutableArray array];
     self.downloadStreams = [NSMutableArray array];
@@ -518,19 +537,19 @@
     if (([method isEqualToString:@"GET"] ||
          [method isEqualToString:@"DELETE"]) && (params && [params count] > 0)) {
       
-      finalURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@?%@", aURLString, 
+      finalURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@?%@", aURLString,
                                        [self encodedPostDataString]]];
     } else {
       finalURL = [NSURL URLWithString:aURLString];
     }
     
-    self.request = [NSMutableURLRequest requestWithURL:finalURL                                                           
-                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData                                            
+    self.request = [NSMutableURLRequest requestWithURL:finalURL
+                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
                                        timeoutInterval:kMKNetworkKitRequestTimeOutInSeconds];
     
     [self.request setHTTPMethod:method];
     
-    [self.request setValue:[NSString stringWithFormat:@"%@, en-us", 
+    [self.request setValue:[NSString stringWithFormat:@"%@, en-us",
                             [[NSLocale preferredLanguages] componentsJoinedByString:@", "]
                             ] forHTTPHeaderField:@"Accept-Language"];
     
@@ -555,7 +574,7 @@
 
 -(void) setAuthorizationHeaderValue:(NSString*) token forAuthType:(NSString*) authType {
   
-  [self.request setValue:[NSString stringWithFormat:@"%@ %@", authType, token] 
+  [self.request setValue:[NSString stringWithFormat:@"%@ %@", authType, token]
       forHTTPHeaderField:@"Authorization"];
 }
 /*
@@ -564,11 +583,11 @@
 
 -(NSString*) description {
   
-  NSMutableString *displayString = [NSMutableString stringWithFormat:@"%@\nRequest\n-------\n%@", 
+  NSMutableString *displayString = [NSMutableString stringWithFormat:@"%@\nRequest\n-------\n%@",
                                     [[NSDate date] descriptionWithLocale:[NSLocale currentLocale]],
                                     [self curlCommandLineString]];
   
-  NSString *responseString = [self responseString];    
+  NSString *responseString = [self responseString];
   if([responseString length] > 0) {
     [displayString appendFormat:@"\n--------\nResponse\n--------\n%@\n", responseString];
   }
@@ -595,7 +614,7 @@
     if(self.postDataEncoding == MKNKPostDataEncodingTypeURL) {
       [self.fieldsToBePosted enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         
-        [displayString appendFormat:@" %@ \"%@=%@\"", option, key, obj];    
+        [displayString appendFormat:@" %@ \"%@=%@\"", option, key, obj];
       }];
     } else {
       [displayString appendFormat:@" -d \"%@\"", [self encodedPostDataString]];
@@ -627,17 +646,17 @@
 }
 
 -(void) addData:(NSData*) data forKey:(NSString*) key mimeType:(NSString*) mimeType fileName:(NSString*) fileName {
-
+  
   if ([self.request.HTTPMethod isEqualToString:@"GET"]) {
-      [self.request setHTTPMethod:@"POST"];
+    [self.request setHTTPMethod:@"POST"];
   }
   
   NSDictionary *dict = @{@"data": data,
-                        @"name": key,
-                        @"mimetype": mimeType,
-                        @"filename": fileName};
+  @"name": key,
+  @"mimetype": mimeType,
+  @"filename": fileName};
   
-  [self.dataToBePosted addObject:dict];    
+  [self.dataToBePosted addObject:dict];
 }
 
 -(void) addFile:(NSString*) filePath forKey:(NSString*) key {
@@ -648,14 +667,14 @@
 -(void) addFile:(NSString*) filePath forKey:(NSString*) key mimeType:(NSString*) mimeType {
   
   if ([self.request.HTTPMethod isEqualToString:@"GET"]) {
-      [self.request setHTTPMethod:@"POST"];
+    [self.request setHTTPMethod:@"POST"];
   }
   
   NSDictionary *dict = @{@"filepath": filePath,
-                        @"name": key,
-                        @"mimetype": mimeType};
+  @"name": key,
+  @"mimetype": mimeType};
   
-  [self.filesToBePosted addObject:dict];    
+  [self.filesToBePosted addObject:dict];
 }
 
 -(NSData*) bodyData {
@@ -667,29 +686,29 @@
   
   NSString *boundary = @"0xKhTmLbOuNdArY";
   NSMutableData *body = [NSMutableData data];
-  __block NSUInteger postLength = 0;    
+  __block NSUInteger postLength = 0;
   
   [self.fieldsToBePosted enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
     
     NSString *thisFieldString = [NSString stringWithFormat:
-                                     @"--%@\r\nContent-Disposition: form-data; name=\"%@\"\r\n\r\n%@",
+                                 @"--%@\r\nContent-Disposition: form-data; name=\"%@\"\r\n\r\n%@",
                                  boundary, key, obj];
     
     [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];
     [body appendData:[@"\r\n" dataUsingEncoding:[self stringEncoding]]];
-  }];        
+  }];
   
   [self.filesToBePosted enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
     
     NSDictionary *thisFile = (NSDictionary*) obj;
     NSString *thisFieldString = [NSString stringWithFormat:
                                  @"--%@\r\nContent-Disposition: form-data; name=\"%@\"; filename=\"%@\"\r\nContent-Type: %@\r\nContent-Transfer-Encoding: binary\r\n\r\n",
-                                 boundary, 
-                                 thisFile[@"name"], 
-                                 [thisFile[@"filepath"] lastPathComponent], 
+                                 boundary,
+                                 thisFile[@"name"],
+                                 [thisFile[@"filepath"] lastPathComponent],
                                  thisFile[@"mimetype"]];
     
-    [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];         
+    [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];
     [body appendData: [NSData dataWithContentsOfFile:thisFile[@"filepath"]]];
     [body appendData:[@"\r\n" dataUsingEncoding:[self stringEncoding]]];
   }];
@@ -699,12 +718,12 @@
     NSDictionary *thisDataObject = (NSDictionary*) obj;
     NSString *thisFieldString = [NSString stringWithFormat:
                                  @"--%@\r\nContent-Disposition: form-data; name=\"%@\"; filename=\"%@\"\r\nContent-Type: %@\r\nContent-Transfer-Encoding: binary\r\n\r\n",
-                                 boundary, 
-                                 thisDataObject[@"name"], 
-                                 thisDataObject[@"filename"], 
+                                 boundary,
+                                 thisDataObject[@"name"],
+                                 thisDataObject[@"filename"],
                                  thisDataObject[@"mimetype"]];
     
-    [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];         
+    [body appendData:[thisFieldString dataUsingEncoding:[self stringEncoding]]];
     [body appendData:thisDataObject[@"data"]];
     [body appendData:[@"\r\n" dataUsingEncoding:[self stringEncoding]]];
   }];
@@ -717,7 +736,7 @@
   NSString *charset = (__bridge NSString *)CFStringConvertEncodingToIANACharSetName(CFStringConvertNSStringEncodingToEncoding(self.stringEncoding));
   
   if(([self.filesToBePosted count] > 0) || ([self.dataToBePosted count] > 0)) {
-    [self.request setValue:[NSString stringWithFormat:@"multipart/form-data; charset=%@; boundary=%@", charset, boundary] 
+    [self.request setValue:[NSString stringWithFormat:@"multipart/form-data; charset=%@; boundary=%@", charset, boundary]
         forHTTPHeaderField:@"Content-Type"];
     
     [self.request setValue:[NSString stringWithFormat:@"%lu", (unsigned long) [body length]] forHTTPHeaderField:@"Content-Length"];
@@ -743,14 +762,14 @@
 
 -(void) endBackgroundTask {
   
-#if TARGET_OS_IPHONE                
+#if TARGET_OS_IPHONE
   dispatch_async(dispatch_get_main_queue(), ^{
     if (self.backgroundTaskId != UIBackgroundTaskInvalid) {
       [[UIApplication sharedApplication] endBackgroundTask:self.backgroundTaskId];
       self.backgroundTaskId = UIBackgroundTaskInvalid;
     }
   });
-#endif        
+#endif
 }
 
 - (void) start
@@ -779,9 +798,9 @@
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
-      self.connection = [[NSURLConnection alloc] initWithRequest:self.request 
-                                                        delegate:self 
-                                                startImmediately:NO]; 
+      self.connection = [[NSURLConnection alloc] initWithRequest:self.request
+                                                        delegate:self
+                                                startImmediately:NO];
       
       [self.connection scheduleInRunLoop:[NSRunLoop currentRunLoop]
                                  forMode:NSRunLoopCommonModes];
@@ -810,7 +829,7 @@
   return (self.state == MKNetworkOperationStateReady);
 }
 
-- (BOOL)isFinished 
+- (BOOL)isFinished
 {
   return (self.state == MKNetworkOperationStateFinished);
 }
@@ -822,7 +841,7 @@
 
 -(void) cancel {
   
-  if([self isFinished]) 
+  if([self isFinished])
     return;
   
   @synchronized(self) {
@@ -836,6 +855,12 @@
     [self.errorBlocks removeAllObjects];
     self.errorBlocks = nil;
     
+    [self.errorBlocksType2 removeAllObjects];
+    self.errorBlocksType2 = nil;
+    
+    [self.notModifiedHandlers removeAllObjects];
+    self.notModifiedHandlers = nil;
+    
     [self.uploadProgressChangedHandlers removeAllObjects];
     self.uploadProgressChangedHandlers = nil;
     
@@ -848,7 +873,7 @@
     [self.downloadStreams removeAllObjects];
     self.downloadStreams = nil;
     
-    self.authHandler = nil;    
+    self.authHandler = nil;
     self.mutableData = nil;
     self.downloadedDataSize = 0;
     
@@ -885,12 +910,12 @@
     if (((challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodDefault) ||
          (challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodHTTPBasic) ||
          (challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodHTTPDigest) ||
-         (challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodNTLM)) && 
+         (challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodNTLM)) &&
         (self.username && self.password))
     {
       
       // for NTLM, we will assume user name to be of the form "domain\\username"
-      NSURLCredential *credential = [NSURLCredential credentialWithUser:self.username 
+      NSURLCredential *credential = [NSURLCredential credentialWithUser:self.username
                                                                password:self.password
                                                             persistence:self.credentialPersistence];
       
@@ -936,14 +961,14 @@
           // Cert not trusted, and user is not OK with that. Don't proceed
           [challenge.sender continueWithoutCredentialForAuthenticationChallenge:challenge];
         }
-      } 
+      }
       else {
         
         // invalid or revoked certificate
         [challenge.sender useCredential:[NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust] forAuthenticationChallenge:challenge];
         //[challenge.sender continueWithoutCredentialForAuthenticationChallenge:challenge];
       }
-    }        
+    }
     else if (self.authHandler) {
       
       // forward the authentication to the view controller that created this operation
@@ -990,7 +1015,7 @@
     NSString *expiresOn = httpHeaders[@"Expires"];
     
     NSString *contentType = httpHeaders[@"Content-Type"];
-    // if contentType is image, 
+    // if contentType is image,
     
     NSDate *expiresOnDate = nil;
     
@@ -999,7 +1024,7 @@
       // For images let's assume a expiry date of 7 days if there is no eTag or Last Modified.
       if(!eTag && !lastModified)
         expiresOnDate = [[NSDate date] dateByAddingTimeInterval:kMKNetworkKitDefaultImageCacheDuration];
-      else    
+      else
         expiresOnDate = [[NSDate date] dateByAddingTimeInterval:kMKNetworkKitDefaultImageHeadRequestDuration];
     }
     
@@ -1025,7 +1050,7 @@
       }
     }
     
-    // if there was a cacheControl entity, we would have a expiresOnDate that is not nil.        
+    // if there was a cacheControl entity, we would have a expiresOnDate that is not nil.
     // "Cache-Control" headers take precedence over "Expires" headers
     
     expiresOn = [expiresOnDate rfc1123String];
@@ -1050,7 +1075,7 @@
       NSString *bytesText = [rangeString substringWithRange:NSMakeRange(6, [rangeString length] - 7)];
       self.startPosition = [bytesText integerValue];
       self.downloadedDataSize = self.startPosition;
-      DLog(@"Resuming at %d bytes", self.startPosition);
+      DLog(@"Resuming at %lu bytes", (unsigned long) self.startPosition);
     }
   }
   
@@ -1062,7 +1087,7 @@
     if ([stream hasSpaceAvailable]) {
       const uint8_t *dataBuffer = [data bytes];
       [stream write:&dataBuffer[0] maxLength:[data length]];
-    }        
+    }
   }
   
   self.downloadedDataSize += [data length];
@@ -1073,11 +1098,11 @@
       
       double progress = (double)(self.downloadedDataSize) / (double)(self.startPosition + [self.response expectedContentLength]);
       downloadProgressBlock(progress);
-    }        
+    }
   }
 }
 
-- (void)connection:(NSURLConnection *)connection didSendBodyData:(NSInteger)bytesWritten 
+- (void)connection:(NSURLConnection *)connection didSendBodyData:(NSInteger)bytesWritten
  totalBytesWritten:(NSInteger)totalBytesWritten
 totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   
@@ -1097,7 +1122,6 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   if (inRedirectResponse) {
     NSMutableURLRequest *r = [self.request mutableCopy];
     [r setURL: [inRequest URL]];
-    DLog(@"Redirected to %@", [[inRequest URL] absoluteString]);
     
     return r;
   } else {
@@ -1106,10 +1130,10 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
 }
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
   
-  if([self isCancelled]) 
+  if([self isCancelled])
     return;
   
-  self.state = MKNetworkOperationStateFinished;    
+  self.state = MKNetworkOperationStateFinished;
   
   for(NSOutputStream *stream in self.downloadStreams)
     [stream close];
@@ -1117,17 +1141,21 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   if (self.response.statusCode >= 200 && self.response.statusCode < 300 && ![self isCancelled]) {
     
     self.cachedResponse = nil; // remove cached data
-    [self notifyCache];        
+    [self notifyCache];
     [self operationSucceeded];
     
-  } 
+  }
   if (self.response.statusCode >= 300 && self.response.statusCode < 400) {
     
     if(self.response.statusCode == 301) {
       DLog(@"%@ has moved to %@", self.url, [self.response.URL absoluteString]);
     }
     else if(self.response.statusCode == 304) {
-      DLog(@"%@ not modified", self.url);
+      
+      for(MKNKVoidBlock notModifiedBlock in self.notModifiedHandlers) {
+        
+        notModifiedBlock();
+      }
     }
     else if(self.response.statusCode == 307) {
       DLog(@"%@ temporarily redirected", self.url);
@@ -1136,12 +1164,12 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
       DLog(@"%@ returned status %d", self.url, (int) self.response.statusCode);
     }
     
-  } else if (self.response.statusCode >= 400 && self.response.statusCode < 600 && ![self isCancelled]) {                        
+  } else if (self.response.statusCode >= 400 && self.response.statusCode < 600 && ![self isCancelled]) {
     
     [self operationFailedWithError:[NSError errorWithDomain:NSURLErrorDomain
                                                        code:self.response.statusCode
                                                    userInfo:self.response.allHeaderFields]];
-  }  
+  }
   [self endBackgroundTask];
   
 }
@@ -1192,7 +1220,7 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
     
     size_t imageWidth = (size_t)targetSize.width;
     size_t imageHeight = (size_t)targetSize.height;
-
+    
     CGContextRef context = CGBitmapContextCreate(NULL,
                                                  imageWidth,
                                                  imageHeight,
@@ -1231,7 +1259,7 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
     CGImageRelease(decompressedImageRef);
     dispatch_async(dispatch_get_main_queue(), ^{
       imageDecompressionHandler(decompressedImage);
-    });    
+    });
   });
 }
 
@@ -1249,17 +1277,11 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
 
 -(id) responseJSON {
   
-    if(NSClassFromString(@"NSJSONSerialization")) {
-      if([self responseData] == nil) return nil;
-      NSError *error = nil;
-      id returnValue = [NSClassFromString(@"NSJSONSerialization") JSONObjectWithData:[self responseData] options:0 error:&error];
-      if(error) DLog(@"JSON Parsing Error: %@", error);
-      return returnValue;
-    }
-    else {
-      DLog("You are running on iOS 4. Subclass MKNO and override responseJSON to support custom JSON parsing");
-      return [self responseString];
-    }
+  if([self responseData] == nil) return nil;
+  NSError *error = nil;
+  id returnValue = [NSJSONSerialization JSONObjectWithData:[self responseData] options:0 error:&error];
+  if(error) DLog(@"JSON Parsing Error: %@", error);
+  return returnValue;
 }
 
 #pragma mark -
@@ -1282,7 +1304,7 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
     UILocalNotification *localNotification = [[UILocalNotification alloc] init];
     
     localNotification.alertBody = [self.error localizedDescription];
-    localNotification.alertAction = NSLocalizedString(@"Dismiss", @"");	
+    localNotification.alertAction = NSLocalizedString(@"Dismiss", @"");
     
     [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
   }
@@ -1294,7 +1316,10 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   self.error = error;
   DLog(@"%@, [%@]", self, [self.error localizedDescription]);
   for(MKNKErrorBlock errorBlock in self.errorBlocks)
-    errorBlock(error);  
+    errorBlock(error);
+
+  for(MKNKResponseErrorBlock errorBlock in self.errorBlocksType2)
+    errorBlock(self, error);
   
 #if TARGET_OS_IPHONE
   DLog(@"State: %d", [[UIApplication sharedApplication] applicationState]);
