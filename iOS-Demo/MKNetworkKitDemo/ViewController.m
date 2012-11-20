@@ -28,15 +28,6 @@
 
 @implementation ViewController
 
-@synthesize uploadOperation = _uploadOperation;
-@synthesize downloadOperation = _downloadOperation;
-@synthesize currencyOperation = _currencyOperation;
-
-@synthesize downloadProgessBar = _downloadProgessBar;
-@synthesize uploadProgessBar = _uploadProgessBar;
-@synthesize userTextField = _userTextField;
-@synthesize passwordTextField = _passwordTextField;
-
 - (void)didReceiveMemoryWarning
 {
     [super didReceiveMemoryWarning];
@@ -132,7 +123,7 @@
 -(IBAction)downloadFileTapped:(id)sender {
     
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-    NSString *cachesDirectory = [paths objectAtIndex:0];
+    NSString *cachesDirectory = paths[0];
 	NSString *downloadPath = [cachesDirectory stringByAppendingPathComponent:@"DownloadedFile.pdf"];
     
     self.downloadOperation = [ApplicationDelegate.sampleDownloader downloadFatAssFileFrom:@"http://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSURLRequest_Class/NSURLRequest_Class.pdf" 

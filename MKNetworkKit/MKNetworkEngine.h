@@ -52,6 +52,7 @@
  *  
  */
 - (id) initWithHostName:(NSString*) hostName;
+
 /*!
  *  @abstract Initializes your network engine with a hostname and custom header fields
  *  
@@ -78,6 +79,7 @@
  *  
  */
 - (id) initWithHostName:(NSString*) hostName apiPath:(NSString*) apiPath customHeaderFields:(NSDictionary*) headers;
+
 /*!
  *  @abstract Creates a simple GET Operation with a request URL
  *  
@@ -101,7 +103,7 @@
  *  
  */
 -(MKNetworkOperation*) operationWithPath:(NSString*) path
-                         params:(NSMutableDictionary*) body;
+                         params:(NSDictionary*) body;
 
 /*!
  *  @abstract Creates a simple GET Operation with a request URL, parameters and HTTP Method
@@ -114,7 +116,7 @@
  *  The HTTP Method is implicitly assumed to be GET
  */
 -(MKNetworkOperation*) operationWithPath:(NSString*) path
-                         params:(NSMutableDictionary*) body
+                         params:(NSDictionary*) body
                    httpMethod:(NSString*)method;
 
 /*!
@@ -130,10 +132,9 @@
  *  The previously mentioned methods operationWithPath: and operationWithPath:params: call this internally
  */
 -(MKNetworkOperation*) operationWithPath:(NSString*) path
-                         params:(NSMutableDictionary*) body
+                         params:(NSDictionary*) body
                    httpMethod:(NSString*)method 
                           ssl:(BOOL) useSSL;
-
 
 /*!
  *  @abstract Creates a simple GET Operation with a request URL
@@ -157,7 +158,7 @@
  *  The HTTP method is implicitly assumed to be GET.
  */
 -(MKNetworkOperation*) operationWithURLString:(NSString*) urlString
-                                       params:(NSMutableDictionary*) body;
+                                       params:(NSDictionary*) body;
 
 /*!
  *  @abstract Creates a simple Operation with a request URL, parameters and HTTP Method
@@ -174,7 +175,7 @@
  *  prepareHeaders:
  */
 -(MKNetworkOperation*) operationWithURLString:(NSString*) urlString
-                              params:(NSMutableDictionary*) body
+                              params:(NSDictionary*) body
                         httpMethod:(NSString*) method;
 
 /*!
@@ -187,8 +188,20 @@
  *  @seealso
  *  operationWithURLString:params:httpMethod:
  */
-
 -(void) prepareHeaders:(MKNetworkOperation*) operation;
+
+/*!
+ *  @abstract Handy helper method for fetching images asynchronously in the background
+ *
+ *  @discussion
+ *	Creates an operation with the given image URL.
+ *  The hostname of the engine is *NOT* prefixed.
+ *  The image is returned to the caller via MKNKImageBlock callback block. This image is resized as per the size and decompressed in background.
+ *  @seealso
+ *  imageAtUrl:onCompletion:
+ */
+- (MKNetworkOperation*)imageAtURL:(NSURL *)url size:(CGSize) size onCompletion:(MKNKImageBlock) imageFetchedBlock;
+
 /*!
  *  @abstract Handy helper method for fetching images
  *  
@@ -198,6 +211,7 @@
  *  The image is returned to the caller via MKNKImageBlock callback block. 
  */
 - (MKNetworkOperation*)imageAtURL:(NSURL *)url onCompletion:(MKNKImageBlock) imageFetchedBlock;
+
 /*!
  *  @abstract Enqueues your operation into the shared queue
  *  
@@ -271,6 +285,7 @@
  *  This method is optional. If you don't use, factory methods in MKNetworkEngine creates MKNetworkOperation objects.
  */
 -(void) registerOperationSubclass:(Class) aClass;
+
 /*!
  *  @abstract Cache Directory Name
  *  

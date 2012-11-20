@@ -30,8 +30,6 @@
 #import <objc/runtime.h>
 
 #define kActivityIndicatorTag 18942347
-#define kMaskingViewTag 18942348
-#define kTemporaryViewTag 18942349
 
 static char kMKNetworkOperationObjectKey;
 
@@ -85,33 +83,25 @@ static char kMKNetworkOperationObjectKey;
 - (void)mk_cleanup {
     UIView *activityIndicator = [self viewWithTag:kActivityIndicatorTag];
     [activityIndicator removeFromSuperview];
-    UIView *maskingImageView = [self viewWithTag:kMaskingViewTag];
-    [maskingImageView removeFromSuperview];
-    UIView *temporaryImageView = [self viewWithTag:kTemporaryViewTag];
-    [temporaryImageView removeFromSuperview];
 }
 
-- (void)mk_setImageAtURL:(NSURL *)imageURL {
-    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine]];
+- (void)mk_setImageAtURL:(NSURL *)imageURL onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil size:CGSizeZero onCompletion:onCompletion];
 }
 
-- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine {
-    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil onCompletion:nil];
+- (void)mk_setImageAtURL:(NSURL *)imageURL size:(CGSize)size onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:NO showActivityIndicator:YES activityIndicatorStyle:UIActivityIndicatorViewStyleGray loadingImage:nil fadeIn:YES notAvailableImage:nil size:size onCompletion:onCompletion];
 }
 
 - (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
-    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:nil];
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage size:CGSizeZero onCompletion:nil];
 }
 
-- (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
-    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:onCompletion];
+- (void)mk_setImageAtURL:(NSURL *)imageURL forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage size:(CGSize)size onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
+    [self mk_setImageAtURL:imageURL usingEngine:[UIImageView mk_sharedImageEngine] forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage size:size onCompletion:onCompletion];
 }
 
-- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage {
-    [self mk_setImageAtURL:imageURL usingEngine:engine forceReload:forceReload showActivityIndicator:showActivityIndicator activityIndicatorStyle:indicatorStyle loadingImage:loadingImage fadeIn:fadeIn notAvailableImage:notAvailableImage onCompletion:nil];
-}
-
-- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
+- (void)mk_setImageAtURL:(NSURL *)imageURL usingEngine:(MKNetworkEngine *)engine forceReload:(BOOL)forceReload showActivityIndicator:(BOOL)showActivityIndicator activityIndicatorStyle:(UIActivityIndicatorViewStyle)indicatorStyle loadingImage:(UIImage *)loadingImage fadeIn:(BOOL)fadeIn notAvailableImage:(UIImage *)notAvailableImage size:(CGSize)size onCompletion:(MKNKImageLoadCompletionBlock)onCompletion {
     NSParameterAssert(engine);
     
     // Don't restart same URL
@@ -127,7 +117,9 @@ static char kMKNetworkOperationObjectKey;
         [self mk_cancelImageDownload];
     }
     
-    self.image = loadingImage;
+    if (loadingImage) {
+        self.image = loadingImage;
+    }
     
     if (!imageURL) {
         self.image = notAvailableImage;
@@ -137,37 +129,8 @@ static char kMKNetworkOperationObjectKey;
         return;
     }
     
-    // Setup views needed for fade
-    UIImageView *temporaryImageView = nil;
-    UIImageView *maskingImageView = nil;
-    if (fadeIn) {
-        temporaryImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
-        temporaryImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        temporaryImageView.contentMode = self.contentMode;
-        temporaryImageView.image = self.image;
-        temporaryImageView.tag = kTemporaryViewTag;
-        [self addSubview:temporaryImageView];
-        
-        maskingImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
-        maskingImageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        maskingImageView.contentMode = self.contentMode;
-        maskingImageView.image = self.image;
-        maskingImageView.tag = kMaskingViewTag;
-        
-        if (self.backgroundColor) {
-            maskingImageView.backgroundColor = self.backgroundColor;
-        } else {
-            maskingImageView.backgroundColor = [UIColor clearColor];
-        }
-        [self addSubview:maskingImageView];
-    }
-    
     if (showActivityIndicator) {
-        if (maskingImageView) {
-            [maskingImageView mk_showActivityIndicatorWithStyle:indicatorStyle];
-        } else {
-            [self mk_showActivityIndicatorWithStyle:indicatorStyle];
-        }
+        [self mk_showActivityIndicatorWithStyle:indicatorStyle];
     }
     
 #if __has_feature(objc_arc_weak)
@@ -181,48 +144,45 @@ static char kMKNetworkOperationObjectKey;
             fetchedImage = notAvailableImage;
         }
         
-        if (fadeIn && !isInCache) {
-            // Perform fade
-            temporaryImageView.image = fetchedImage;
-            temporaryImageView.alpha = 0;
-            maskingImageView.alpha = 1;
-            [UIView animateWithDuration:0.4
-                             animations:^{
-                                 temporaryImageView.alpha = 1;
-                                 maskingImageView.alpha = 0;
-                             }
-                             completion:^(BOOL finished) {
-                                 if (finished) {
-                                     // Set image and cleanup
-                                     weakSelf.image = fetchedImage;
-                                     [temporaryImageView removeFromSuperview];
-                                     [maskingImageView removeFromSuperview];
-                                 }
-                             }];
-        } else {
-            // Set image and cleanup
+        UIView *activityIndicator = [weakSelf viewWithTag:kActivityIndicatorTag];
+        [UIView transitionWithView:weakSelf duration:fadeIn ? 0.4f : 0.0f options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             weakSelf.image = fetchedImage;
-            [weakSelf mk_cleanup];
-            [temporaryImageView removeFromSuperview];
-            [maskingImageView removeFromSuperview];
-        }
-        
-        if (onCompletion) {
-            onCompletion(success);
-        }
+            activityIndicator.alpha = 0.0f;
+        } completion:^(BOOL finished){
+            [activityIndicator removeFromSuperview];
+            if (onCompletion) {
+                onCompletion(success, isInCache);
+            }
+        }];
     };
     
+    BOOL decompress = !CGSizeEqualToSize(size, CGSizeZero);
     if (operationAlreadyActive) {
-        [self.mk_imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
-            completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
-        } onError:^(NSError *error) {
+        [self.mk_imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
+            if (decompress) {
+                [completedOperation decompressedResponseImageOfSize:size
+                                                  completionHandler:^(UIImage *decompressedImage) {
+                                                      completionBlock(decompressedImage, imageURL, [completedOperation isCachedResponse]);
+                                                  }];
+            } else {
+                completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
+            }
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
     } else {
+        CGSize size = self.bounds.size;
         MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
-        [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
-            completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
-        } onError:^(NSError *error) {
+        [imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
+            if (decompress) {
+                [completedOperation decompressedResponseImageOfSize:size
+                                                  completionHandler:^(UIImage *decompressedImage) {
+                                                      completionBlock(decompressedImage, imageURL, [completedOperation isCachedResponse]);
+                                                  }];
+            } else {
+                completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
+            }
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
         self.mk_imageOperation = imageOperation;
