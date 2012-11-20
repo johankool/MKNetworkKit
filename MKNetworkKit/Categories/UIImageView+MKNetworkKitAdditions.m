@@ -145,7 +145,7 @@ static char kMKNetworkOperationObjectKey;
         }
         
         UIView *activityIndicator = [weakSelf viewWithTag:kActivityIndicatorTag];
-        [UIView transitionWithView:weakSelf duration:fadeIn ? 0.4f : 0.0f options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
+        [UIView transitionWithView:weakSelf duration:(fadeIn && !isInCache) ? 0.4f : 0.0f options:(fadeIn && !isInCache) ? UIViewAnimationOptionTransitionCrossDissolve : UIViewAnimationOptionTransitionNone animations:^{
             weakSelf.image = fetchedImage;
             activityIndicator.alpha = 0.0f;
         } completion:^(BOOL finished){
