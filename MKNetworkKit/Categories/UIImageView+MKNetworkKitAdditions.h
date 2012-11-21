@@ -124,5 +124,13 @@ typedef void (^MKNKImageLoadCompletionBlock) (BOOL success, BOOL fromCache);
  */
 @property (nonatomic, assign, readonly, getter=mk_isLoading) BOOL loading;
 
+/*!
+ *  @abstract MKNetworkEngine used by default for downloading images.
+ *
+ *  @discussion
+ *	Exposed to be able to access images directly without using an UIImageView.
+ */
++ (MKNetworkEngine *)mk_sharedImageEngine;
+
 @end
 #endif

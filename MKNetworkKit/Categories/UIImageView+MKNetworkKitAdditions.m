@@ -145,7 +145,7 @@ static char kMKNetworkOperationObjectKey;
         }
         
         UIView *activityIndicator = [weakSelf viewWithTag:kActivityIndicatorTag];
-        [UIView transitionWithView:weakSelf duration:fadeIn ? 0.4f : 0.0f options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
+        [UIView transitionWithView:weakSelf duration:(fadeIn && !isInCache) ? 0.4f : 0.0f options:(fadeIn && !isInCache) ? UIViewAnimationOptionTransitionCrossDissolve : UIViewAnimationOptionTransitionNone animations:^{
             weakSelf.image = fetchedImage;
             activityIndicator.alpha = 0.0f;
         } completion:^(BOOL finished){
@@ -158,7 +158,7 @@ static char kMKNetworkOperationObjectKey;
     
     BOOL decompress = !CGSizeEqualToSize(size, CGSizeZero);
     if (operationAlreadyActive) {
-        [self.mk_imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+        [self.mk_imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
             if (decompress) {
                 [completedOperation decompressedResponseImageOfSize:size
                                                   completionHandler:^(UIImage *decompressedImage) {
@@ -167,13 +167,13 @@ static char kMKNetworkOperationObjectKey;
             } else {
                 completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
             }
-        } onError:^(NSError *error) {
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
     } else {
         CGSize size = self.bounds.size;
         MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
-        [imageOperation onCompletion:^(MKNetworkOperation *completedOperation) {
+        [imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
             if (decompress) {
                 [completedOperation decompressedResponseImageOfSize:size
                                                   completionHandler:^(UIImage *decompressedImage) {
@@ -182,7 +182,7 @@ static char kMKNetworkOperationObjectKey;
             } else {
                 completionBlock([completedOperation responseImage], imageURL, [completedOperation isCachedResponse]);
             }
-        } onError:^(NSError *error) {
+        } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
             completionBlock(nil, imageURL, NO);
         }];
         self.mk_imageOperation = imageOperation;
