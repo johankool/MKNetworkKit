@@ -32,6 +32,7 @@ typedef enum {
 } MKNetworkOperationState;
 
 typedef void (^MKNKVoidBlock)(void);
+typedef void (^MKNKIDBlock)(void);
 typedef void (^MKNKProgressBlock)(double progress);
 typedef void (^MKNKResponseBlock)(MKNetworkOperation* completedOperation);
 #if TARGET_OS_IPHONE
@@ -86,7 +87,7 @@ typedef enum {
  *  This property is readonly cannot be updated. 
  *  To create an operation with a specific URL, use the operationWithURLString:params:httpMethod: 
  */
-@property (nonatomic, readonly) NSString *url;
+@property (nonatomic, copy, readonly) NSString *url;
 
 /*!
  *  @abstract The internal request object
@@ -122,7 +123,7 @@ typedef enum {
  *  @seealso
  *   addHeaders:
  */
-@property (nonatomic, strong, readonly) NSDictionary *readonlyPostDictionary;
+@property (nonatomic, copy, readonly) NSDictionary *readonlyPostDictionary;
 
 /*!
  *  @abstract The internal request object's method type
@@ -133,7 +134,7 @@ typedef enum {
  *  This property is readonly cannot be modified. 
  *  To create an operation with a new method type, use the operationWithURLString:params:httpMethod: 
  */
-@property (nonatomic, strong, readonly) NSString *HTTPMethod;
+@property (nonatomic, copy, readonly) NSString *HTTPMethod;
 
 /*!
  *  @abstract The internal response object's status code
@@ -246,7 +247,7 @@ typedef enum {
  *  @discussion
  *	If your request needs to be authenticated using a client certificate, set the certificate path here
  */
-@property (strong, nonatomic) NSString *clientCertificate;
+@property (copy, nonatomic) NSString *clientCertificate;
 
 /*!
  *  @abstract Custom authentication handler
@@ -530,11 +531,24 @@ typedef enum {
  *  @discussion
  *	This method is used for accessing the downloaded data as a NSDictionary or an NSArray. If the operation is still in progress, the method returns nil. If the response is not a valid JSON, this method returns nil.
  *
+ *  @seealso
+ *  responseJSONWithCompletionHandler:
+
  *  @availability
  *  iOS 5 and above or Mac OS 10.7 and above
  */
 -(id) responseJSON;
 
+/*!
+ *  @abstract Helper method to retrieve the contents as a NSDictionary or NSArray depending on the JSON contents in the background
+ *
+ *  @discussion
+ *	This method is used for accessing the downloaded data as a NSDictionary or an NSArray. If the operation is still in progress, the method returns nil. If the response is not a valid JSON, this method returns nil. The difference between this and responseJSON is that, this method decodes JSON in the background.
+ *
+ *  @availability
+ *  iOS 5 and above or Mac OS 10.7 and above
+ */
+-(void) responseJSONWithCompletionHandler:(void (^)(id jsonObject)) jsonDecompressionHandler;
 /*!
  *  @abstract Overridable custom method where you can add your custom business logic error handling
  *  

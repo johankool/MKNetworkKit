@@ -41,7 +41,7 @@
 
 @interface MKNetworkOperation (/*Private Methods*/)
 @property (strong, nonatomic) NSURLConnection *connection;
-@property (strong, nonatomic) NSString *uniqueId;
+@property (copy, nonatomic) NSString *uniqueId;
 @property (strong, nonatomic) NSMutableURLRequest *request;
 @property (strong, nonatomic) NSHTTPURLResponse *response;
 
@@ -49,8 +49,8 @@
 @property (strong, nonatomic) NSMutableArray *filesToBePosted;
 @property (strong, nonatomic) NSMutableArray *dataToBePosted;
 
-@property (strong, nonatomic) NSString *username;
-@property (strong, nonatomic) NSString *password;
+@property (copy, nonatomic) NSString *username;
+@property (copy, nonatomic) NSString *password;
 
 @property (nonatomic, strong) NSMutableArray *responseBlocks;
 @property (nonatomic, strong) NSMutableArray *errorBlocks;
@@ -71,7 +71,7 @@
 @property (nonatomic, assign) NSInteger startPosition;
 
 @property (nonatomic, strong) NSMutableArray *downloadStreams;
-@property (nonatomic, strong) NSData *cachedResponse;
+@property (nonatomic, copy) NSData *cachedResponse;
 @property (nonatomic, copy) MKNKResponseBlock cacheHandlingBlock;
 
 #if TARGET_OS_IPHONE
@@ -284,7 +284,7 @@
 
 -(MKNetworkOperationState) state {
   
-  return _state;
+  return (MKNetworkOperationState)_state;
 }
 
 -(void) setState:(MKNetworkOperationState)newState {
@@ -326,7 +326,7 @@
 
 - (void)encodeWithCoder:(NSCoder *)encoder
 {
-  [encoder encodeInteger:self.stringEncoding forKey:@"stringEncoding"];
+  [encoder encodeInteger:(NSInteger)self.stringEncoding forKey:@"stringEncoding"];
   [encoder encodeInteger:_postDataEncoding forKey:@"postDataEncoding"];
   
   [encoder encodeObject:self.uniqueId forKey:@"uniqueId"];
@@ -343,7 +343,7 @@
   [encoder encodeInt32:_state forKey:@"state"];
   [encoder encodeBool:self.isCancelled forKey:@"isCancelled"];
   [encoder encodeObject:self.mutableData forKey:@"mutableData"];
-  [encoder encodeInteger:self.downloadedDataSize forKey:@"downloadedDataSize"];
+  [encoder encodeInteger:(NSInteger)self.downloadedDataSize forKey:@"downloadedDataSize"];
   [encoder encodeObject:self.downloadStreams forKey:@"downloadStreams"];
   [encoder encodeInteger:self.startPosition forKey:@"startPosition"];
   [encoder encodeInteger:self.credentialPersistence forKey:@"credentialPersistence"];
@@ -353,7 +353,7 @@
 {
   self = [super init];
   if (self) {
-    [self setStringEncoding:[decoder decodeIntegerForKey:@"stringEncoding"]];
+    [self setStringEncoding:(NSStringEncoding)[decoder decodeIntegerForKey:@"stringEncoding"]];
     _postDataEncoding = (MKNKPostDataEncodingType) [decoder decodeIntegerForKey:@"postDataEncoding"];
     self.request = [decoder decodeObjectForKey:@"request"];
     self.uniqueId = [decoder decodeObjectForKey:@"uniqueId"];
@@ -365,7 +365,7 @@
     self.username = [decoder decodeObjectForKey:@"username"];
     self.password = [decoder decodeObjectForKey:@"password"];
     self.clientCertificate = [decoder decodeObjectForKey:@"clientCertificate"];
-    [self setState:[decoder decodeInt32ForKey:@"state"]];
+    [self setState:(MKNetworkOperationState)[decoder decodeInt32ForKey:@"state"]];
     self.isCancelled = [decoder decodeBoolForKey:@"isCancelled"];
     self.mutableData = [decoder decodeObjectForKey:@"mutableData"];
     self.downloadedDataSize = [decoder decodeIntegerForKey:@"downloadedDataSize"];
@@ -989,7 +989,7 @@
 
 - (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response {
   
-  NSUInteger size = [self.response expectedContentLength] < 0 ? 0 : [self.response expectedContentLength];
+  NSUInteger size = [self.response expectedContentLength] < 0 ? 0 : (NSUInteger)[self.response expectedContentLength];
   self.response = (NSHTTPURLResponse*) response;
   
   // dont' save data if the operation was created to download directly to a stream.
@@ -1053,7 +1053,8 @@
     // if there was a cacheControl entity, we would have a expiresOnDate that is not nil.
     // "Cache-Control" headers take precedence over "Expires" headers
     
-    expiresOn = [expiresOnDate rfc1123String];
+    if(expiresOnDate)
+      expiresOn = [expiresOnDate rfc1123String];
     
     // now remember lastModified, eTag and expires for this request in cache
     if(expiresOn)
@@ -1284,6 +1285,31 @@ totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
   return returnValue;
 }
 
+-(void) responseJSONWithCompletionHandler:(void (^)(id jsonObject)) jsonDecompressionHandler {
+  
+  if([self responseData] == nil) {
+    
+    jsonDecompressionHandler(nil);
+    return;
+  }
+  
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+    
+    NSError *error = nil;
+    id returnValue = [NSJSONSerialization JSONObjectWithData:[self responseData] options:0 error:&error];
+    if(error) {
+     
+      DLog(@"JSON Parsing Error: %@", error);
+      jsonDecompressionHandler(nil);
+      return;
+    }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+      
+      jsonDecompressionHandler(returnValue);
+    });
+  });
+}
 #pragma mark -
 #pragma mark Overridable methods
 

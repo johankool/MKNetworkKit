@@ -58,19 +58,22 @@
      thisFlickrImage[@"farm"], thisFlickrImage[@"server"], 
      thisFlickrImage[@"id"], thisFlickrImage[@"secret"]];
     
+
     [self.thumbnailImage mk_setImageAtURL:[NSURL URLWithString:self.loadingImageURLString] onCompletion:nil];
 
-// self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString]
-//                                                                      size:self.thumbnailImage.frame.size
-//                                 onCompletion:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
-//                                    
-//                                     if([self.loadingImageURLString isEqualToString:[url absoluteString]]) {
-//                                        
-//                                       [UIView animateWithDuration:isInCache?0.0f:0.4f delay:0 options:UIViewAnimationOptionShowHideTransitionViews animations:^{
-//                                         self.thumbnailImage.image = fetchedImage;
-//                                       } completion:nil];
-//                                     }
-//                                 }];
+    // self.imageLoadingOperation = [ApplicationDelegate.flickrEngine imageAtURL:[NSURL URLWithString:self.loadingImageURLString]
+    //                                                                      size:self.thumbnailImage.frame.size
+    //                                 completionHandler:^(UIImage *fetchedImage, NSURL *url, BOOL isInCache) {
+                                        
+    //                                     if([self.loadingImageURLString isEqualToString:[url absoluteString]]) {
+                                            
+    //                                       [UIView animateWithDuration:isInCache?0.0f:0.4f delay:0 options:UIViewAnimationOptionShowHideTransitionViews animations:^{
+    //                                         self.thumbnailImage.image = fetchedImage;
+    //                                       } completion:nil];
+    //                                     }
+    //                                 } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
+                                      
+    //                                 }];
 
 }
 

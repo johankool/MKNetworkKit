@@ -42,15 +42,22 @@
 
 @interface MKNetworkEngine (/*Private Methods*/)
 
-@property (strong, nonatomic) NSString *hostName;
+@property (copy, nonatomic) NSString *hostName;
 @property (strong, nonatomic) Reachability *reachability;
-@property (strong, nonatomic) NSDictionary *customHeaders;
+@property (copy, nonatomic) NSDictionary *customHeaders;
 @property (assign, nonatomic) Class customOperationSubclass;
 
 @property (nonatomic, strong) NSMutableDictionary *memoryCache;
 @property (nonatomic, strong) NSMutableArray *memoryCacheKeys;
 @property (nonatomic, strong) NSMutableDictionary *cacheInvalidationParams;
+
+#if OS_OBJECT_USE_OBJC
+@property (strong, nonatomic) dispatch_queue_t backgroundCacheQueue;
+@property (strong, nonatomic) dispatch_queue_t operationQueue;
+#else
 @property (assign, nonatomic) dispatch_queue_t backgroundCacheQueue;
+@property (assign, nonatomic) dispatch_queue_t operationQueue;
+#endif
 
 -(void) saveCache;
 -(void) saveCacheData:(NSData*) data forKey:(NSString*) cacheDataKey;
@@ -99,6 +106,7 @@ static NSOperationQueue *_sharedNetworkQueue;
     
     self.apiPath = apiPath;
     self.backgroundCacheQueue = dispatch_queue_create("com.mknetworkkit.cachequeue", DISPATCH_QUEUE_SERIAL);
+    self.operationQueue = dispatch_queue_create("com.mknetworkkit.operationqueue", DISPATCH_QUEUE_SERIAL);
     
     if(hostName) {
       [[NSNotificationCenter defaultCenter] addObserver:self
@@ -120,7 +128,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       newHeadersDict[@"User-Agent"] = userAgentString;
       self.customHeaders = newHeadersDict;
     } else {
-      self.customHeaders = headers;
+      self.customHeaders = [headers mutableCopy];
     }
     
     self.customOperationSubclass = [MKNetworkOperation class];
@@ -166,7 +174,7 @@ static NSOperationQueue *_sharedNetworkQueue;
   if (object == _sharedNetworkQueue && [keyPath isEqualToString:@"operationCount"]) {
     
     [[NSNotificationCenter defaultCenter] postNotificationName:kMKNetworkEngineOperationCountChanged
-                                                        object:[NSNumber numberWithInteger:[_sharedNetworkQueue operationCount]]];
+                                                        object:[NSNumber numberWithInteger:(NSInteger)[_sharedNetworkQueue operationCount]]];
 #if TARGET_OS_IPHONE
     [UIApplication sharedApplication].networkActivityIndicatorVisible =
     ([_sharedNetworkQueue.operations count] > 0);
@@ -250,10 +258,10 @@ static NSOperationQueue *_sharedNetworkQueue;
     NSString *archivePath = [[self cacheDirectoryName] stringByAppendingPathComponent:pendingOperationFile];
     MKNetworkOperation *pendingOperation = [NSKeyedUnarchiver unarchiveObjectWithFile:archivePath];
     [self enqueueOperation:pendingOperation];
-    NSError *error = nil;
-    [[NSFileManager defaultManager] removeItemAtPath:archivePath error:&error];
-    if(error)
-      DLog(@"%@", error);
+    NSError *error2 = nil;
+    [[NSFileManager defaultManager] removeItemAtPath:archivePath error:&error2];
+    if(error2)
+      DLog(@"%@", error2);
   }
 }
 
@@ -371,12 +379,6 @@ static NSOperationQueue *_sharedNetworkQueue;
 -(void) enqueueOperation:(MKNetworkOperation*) operation forceReload:(BOOL) forceReload {
   
   NSParameterAssert(operation != nil);
-  // Grab on to the current queue (We need it later)
-  dispatch_queue_t originalQueue = dispatch_get_current_queue();
-#if DO_GCD_RETAIN_RELEASE
-  dispatch_retain(originalQueue);
-#endif
-  // Jump off the main thread, mainly for disk cache reading purposes
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     [operation setCacheHandler:^(MKNetworkOperation* completedCacheableOperation) {
       
@@ -393,14 +395,14 @@ static NSOperationQueue *_sharedNetworkQueue;
     
     if([operation isCacheable]) {
       
-      if(!forceReload) {
-        NSData *cachedData = [self cachedDataForOperation:operation];
-        if(cachedData) {
-          dispatch_async(originalQueue, ^{
-            // Jump back to the original thread here since setCachedData updates the main thread
-            [operation setCachedData:cachedData];
-          });
-          
+      NSData *cachedData = [self cachedDataForOperation:operation];
+      if(cachedData) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+          // Jump back to the original thread here since setCachedData updates the main thread
+          [operation setCachedData:cachedData];
+        });
+        
+        if(!forceReload) {
           
           NSString *uniqueId = [operation uniqueIdentifier];
           NSMutableDictionary *savedCacheHeaders = (self.cacheInvalidationParams)[uniqueId];
@@ -409,7 +411,7 @@ static NSOperationQueue *_sharedNetworkQueue;
           if(savedCacheHeaders) {
             NSString *expiresOn = savedCacheHeaders[@"Expires"];
             
-            dispatch_sync(originalQueue, ^{
+            dispatch_sync(self.operationQueue, ^{
               NSDate *expiresOnDate = [NSDate dateFromRFC1123:expiresOn];
               expiryTimeInSeconds = [expiresOnDate timeIntervalSinceNow];
             });
@@ -419,7 +421,7 @@ static NSOperationQueue *_sharedNetworkQueue;
         }
       }
       
-      dispatch_async(originalQueue, ^{
+      dispatch_sync(self.operationQueue, ^{
         
         NSUInteger index = [_sharedNetworkQueue.operations indexOfObject:operation];
         if(index == NSNotFound) {
@@ -445,14 +447,13 @@ static NSOperationQueue *_sharedNetworkQueue;
     
     if([self.reachability currentReachabilityStatus] == NotReachable)
       [self freezeOperations];
-#if DO_GCD_RETAIN_RELEASE
-    dispatch_release(originalQueue);
-#endif
   });
 }
 
-- (MKNetworkOperation*)imageAtURL:(NSURL *)url size:(CGSize) size onCompletion:(MKNKImageBlock) imageFetchedBlock {
-  
+#if TARGET_OS_IPHONE
+
+- (MKNetworkOperation*)imageAtURL:(NSURL *)url size:(CGSize) size completionHandler:(MKNKImageBlock) imageFetchedBlock errorHandler:(MKNKResponseErrorBlock) errorBlock {
+    
 #ifdef DEBUG
   // I could enable caching here, but that hits performance and inturn affects table view scrolling
   // if imageAtURL is called for loading thumbnails.
@@ -474,19 +475,22 @@ static NSOperationQueue *_sharedNetworkQueue;
                                                           [completedOperation isCachedResponse]);
                                       }];
   } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
-
-    DLog(@"%@", error);
-  }];
-  
-  [op onNotModified:^{
     
-    DLog(@"Not modified");
+    errorBlock(completedOperation, error);
+    DLog(@"%@", error);
   }];
   
   [self enqueueOperation:op];
   
   return op;
 }
+
+- (MKNetworkOperation*)imageAtURL:(NSURL *)url size:(CGSize) size onCompletion:(MKNKImageBlock) imageFetchedBlock {
+  
+  return [self imageAtURL:url size:size completionHandler:imageFetchedBlock errorHandler:^(MKNetworkOperation* op, NSError* error){}];
+}
+
+#endif
 
 - (MKNetworkOperation*)imageAtURL:(NSURL *)url onCompletion:(MKNKImageBlock) imageFetchedBlock
 {
@@ -522,7 +526,7 @@ static NSOperationQueue *_sharedNetworkQueue;
 #pragma mark Cache related
 
 -(NSString*) cacheDirectoryName {
-
+  
   static NSString *cacheDirectoryName = nil;
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
@@ -573,10 +577,10 @@ static NSOperationQueue *_sharedNetworkQueue;
     
     [self.memoryCacheKeys insertObject:cacheDataKey atIndex:0]; // remove it and insert it at start
     
-    if([self.memoryCacheKeys count] >= [self cacheMemoryCost])
+    if([self.memoryCacheKeys count] >= (NSUInteger)[self cacheMemoryCost])
     {
       NSString *lastKey = [self.memoryCacheKeys lastObject];
-      NSData *data = (self.memoryCache)[lastKey];
+      NSData *data2 = (self.memoryCache)[lastKey];
       NSString *filePath = [[self cacheDirectoryName] stringByAppendingPathComponent:lastKey];
       
       if([[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
@@ -585,7 +589,7 @@ static NSOperationQueue *_sharedNetworkQueue;
         [[NSFileManager defaultManager] removeItemAtPath:filePath error:&error];
         ELog(error);
       }
-      [data writeToFile:filePath atomically:YES];
+      [data2 writeToFile:filePath atomically:YES];
       
       [self.memoryCacheKeys removeLastObject];
       [self.memoryCache removeObjectForKey:lastKey];
