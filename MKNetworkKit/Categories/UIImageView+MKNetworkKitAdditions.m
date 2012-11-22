@@ -171,7 +171,6 @@ static char kMKNetworkOperationObjectKey;
             completionBlock(nil, imageURL, NO);
         }];
     } else {
-        CGSize size = self.bounds.size;
         MKNetworkOperation *imageOperation = [engine operationWithURLString:[imageURL absoluteString]];
         [imageOperation addCompletionHandler:^(MKNetworkOperation *completedOperation) {
             if (decompress) {
