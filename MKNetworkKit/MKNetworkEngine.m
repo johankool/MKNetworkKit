@@ -116,7 +116,11 @@ static NSOperationQueue *_sharedNetworkQueue;
       
       self.hostName = hostName;
       self.reachability = [Reachability reachabilityWithHostname:self.hostName];
-      [self.reachability startNotifier];
+      
+      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
+        [self.reachability startNotifier];
+      });
     }
     
     if(headers[@"User-Agent"] == nil) {
@@ -157,12 +161,7 @@ static NSOperationQueue *_sharedNetworkQueue;
   [[NSNotificationCenter defaultCenter] removeObserver:self name:NSApplicationWillResignActiveNotification object:nil];
   [[NSNotificationCenter defaultCenter] removeObserver:self name:NSApplicationWillTerminateNotification object:nil];
 #endif
-  
-}
 
-+(void) dealloc {
-  
-  [_sharedNetworkQueue removeObserver:[self self] forKeyPath:@"operationCount"];
 }
 
 #pragma mark -
@@ -200,9 +199,15 @@ static NSOperationQueue *_sharedNetworkQueue;
   }
   else if([self.reachability currentReachabilityStatus] == ReachableViaWWAN)
   {
-    DLog(@"Server [%@] is reachable only via cellular data", self.hostName);
-    [_sharedNetworkQueue setMaxConcurrentOperationCount:2];
-    [self checkAndRestoreFrozenOperations];
+    if(self.wifiOnlyMode) {
+      
+      DLog(@" Disabling engine as server [%@] is reachable only via cellular data.", self.hostName);
+      [_sharedNetworkQueue setMaxConcurrentOperationCount:0];
+    } else {
+      DLog(@"Server [%@] is reachable only via cellular data", self.hostName);
+      [_sharedNetworkQueue setMaxConcurrentOperationCount:2];
+      [self checkAndRestoreFrozenOperations];
+    }
   }
   else if([self.reachability currentReachabilityStatus] == NotReachable)
   {
@@ -322,7 +327,14 @@ static NSOperationQueue *_sharedNetworkQueue;
   if(self.apiPath)
     [urlString appendFormat:@"/%@", self.apiPath];
   
-  [urlString appendFormat:@"/%@", path];
+  if(![path isEqualToString:@"/"]) { // fetch for root?
+    
+    if(path.length > 0 && [path characterAtIndex:0] == '/') // if user passes /, don't prefix a slash
+      [urlString appendFormat:@"%@", path];
+    else if (path != nil)
+      [urlString appendFormat:@"/%@", path];
+  }
+
   
   return [self operationWithURLString:urlString params:body httpMethod:method];
 }
@@ -449,8 +461,6 @@ static NSOperationQueue *_sharedNetworkQueue;
   });
 }
 
-#if TARGET_OS_IPHONE
-
 - (MKNetworkOperation*)imageAtURL:(NSURL *)url completionHandler:(MKNKImageBlock) imageFetchedBlock errorHandler:(MKNKResponseErrorBlock) errorBlock {
  
 #ifdef DEBUG
@@ -464,22 +474,26 @@ static NSOperationQueue *_sharedNetworkQueue;
     }
   
   MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
-  
+  op.shouldCacheResponseEvenIfProtocolIsHTTPS = YES;
+
   [op addCompletionHandler:^(MKNetworkOperation *completedOperation) {
     
-    imageFetchedBlock([completedOperation responseImage],
-                      url,
-                      [completedOperation isCachedResponse]);
+    if (imageFetchedBlock)
+        imageFetchedBlock([completedOperation responseImage],
+                          url,
+                          [completedOperation isCachedResponse]);
     
   } errorHandler:^(MKNetworkOperation *completedOperation, NSError *error) {
-    
-    errorBlock(completedOperation, error);
+      if (errorBlock)
+          errorBlock(completedOperation, error);
   }];
   
   [self enqueueOperation:op];
   
   return op;
 }
+
+#if TARGET_OS_IPHONE
 
 - (MKNetworkOperation*)imageAtURL:(NSURL *)url size:(CGSize) size completionHandler:(MKNKImageBlock) imageFetchedBlock errorHandler:(MKNKResponseErrorBlock) errorBlock {
     
@@ -494,7 +508,8 @@ static NSOperationQueue *_sharedNetworkQueue;
     }
   
   MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
-  
+  op.shouldCacheResponseEvenIfProtocolIsHTTPS = YES;
+
   [op addCompletionHandler:^(MKNetworkOperation *completedOperation) {
     [completedOperation decompressedResponseImageOfSize:size
                                       completionHandler:^(UIImage *decompressedImage) {
@@ -525,6 +540,7 @@ static NSOperationQueue *_sharedNetworkQueue;
 {
   return [self imageAtURL:url completionHandler:imageFetchedBlock errorHandler:^(MKNetworkOperation* op, NSError* error){}];
 }
+
 
 #pragma mark -
 #pragma mark Cache related

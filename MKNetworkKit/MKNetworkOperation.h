@@ -211,6 +211,37 @@ typedef enum {
 @property (nonatomic, readonly, strong) NSError *error;
 
 /*!
+ *  @abstract Boolean variable that states whether the operation's response should be cached despite coming from a secured source
+ *  @property shouldCacheEvenIfProtocolIsHTTPS
+ *
+ *  @discussion
+ *	If you set this property to YES, the operation's data will be cached even if the source is secure (HTTPS)
+ *  The default value is NO. MKNetworkKit will not cache responses from secure servers
+ */
+@property (nonatomic, assign) BOOL shouldCacheResponseEvenIfProtocolIsHTTPS;
+
+/*!
+ *  @abstract Boolean variable that states whether the operation's response should be cached
+ *  @property shouldNotCacheResponse
+ *
+ *  @discussion
+ *	If you set this property to YES, the operation's data will not be cached even if the engine's useCache is enabled
+ *  The default value is NO. MKNetworkKit will cache responses based on the engine setting.
+ *  This property should be used sparingly if your backend isn't written adhering to HTTP 1.1 caching standards
+ */
+@property (nonatomic, assign) BOOL shouldNotCacheResponse;
+
+/*!
+ *  @abstract Boolean variable that states whether the operation should continue if the certificate is invalid.
+ *  @property shouldContinueWithInvalidCertificate
+ *
+ *  @discussion
+ *	If you set this property to YES, the operation will continue as if the certificate was valid (if you use Server Trust Auth)
+ *  The default value is NO. MKNetworkKit will not run an operation with a server that is not trusted.
+ */
+@property (nonatomic, assign) BOOL shouldContinueWithInvalidCertificate;
+
+/*!
  *  @abstract Cache headers of the response
  *  @property cacheHeaders
  *  
@@ -248,6 +279,15 @@ typedef enum {
  *	If your request needs to be authenticated using a client certificate, set the certificate path here
  */
 @property (copy, nonatomic) NSString *clientCertificate;
+
+/*!
+ *  @abstract Authentication methods (Password for the Client Certificate)
+ *  @property clientCertificatePassword
+ *
+ *  @discussion
+ *	If your client certificate is encrypted with a password, specify it here
+ */
+@property (copy, nonatomic) NSString *clientCertificatePassword;
 
 /*!
  *  @abstract Custom authentication handler
@@ -324,7 +364,7 @@ typedef enum {
  *  To use HTTP Basic Authentication, consider using the method setUsername:password:basicAuth: instead.
  *
  *  Example
- *  [op setToken:@"abracadabra" forAuthType:@"Token"] will set the header value to 
+ *  [op setAuthorizationHeaderValue:@"abracadabra" forAuthType:@"Token"] will set the header value to
  *  "Authorization: Token abracadabra"
  * 
  *  @seealso
